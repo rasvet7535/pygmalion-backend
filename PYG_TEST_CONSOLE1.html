@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PYG TEST CONSOLE v0.5.GENEZIS — Испытательный Полигон</title>
+<style>
+/* Пигмалион MVP: Graphite Contemplation theme */
+:root {
+  --bg: #0a0e14; --bg2: #111820; --bg3: #1a2230;
+  --fg: #c5cdd8; --fg2: #8b95a5; --fg3: #5a6577;
+  --accent: #4fc3f7; --accent2: #29b6f6;
+  --green: #66bb6a; --red: #ef5350; --yellow: #ffd54f; --orange: #ffa726;
+  --border: #1e2a3a; --radius: 6px;
+  --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--mono); font-size: 13px; line-height: 1.5; }
+.header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
+.header h1 { font-size: 14px; color: var(--accent); font-weight: 600; }
+.header .meta { color: var(--fg2); font-size: 11px; }
+.header .meta .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+.header .meta .dot.ok { background: var(--green); }
+.header .meta .dot.err { background: var(--red); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 12px; padding: 12px; }
+.block { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.block-head { background: var(--bg3); padding: 8px 12px; font-size: 12px; font-weight: 600; color: var(--accent); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.block-head .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: 400; }
+.block-head .tag.active { background: var(--green); color: #000; }
+.block-head .tag.roadmap { background: var(--fg3); color: var(--fg); }
+.block-head .tag.match { background: var(--green); color: #000; }
+.block-head .tag.mismatch { background: var(--red); color: #fff; }
+.block-body { padding: 12px; }
+.field { margin-bottom: 8px; }
+.field label { display: block; font-size: 11px; color: var(--fg2); margin-bottom: 3px; }
+.field input, .field select, .field textarea {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+  color: var(--fg); font-family: var(--mono); font-size: 12px; padding: 6px 8px;
+}
+.field input:focus, .field select:focus { border-color: var(--accent); outline: none; }
+.field textarea { resize: vertical; min-height: 60px; }
+.btn { display: inline-block; padding: 6px 14px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg3); color: var(--fg); font-family: var(--mono); font-size: 11px; cursor: pointer; transition: all 0.15s; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+.btn.primary:hover { background: var(--accent2); }
+.btn.danger { background: var(--red); color: #fff; border-color: var(--red); }
+.btn.danger:hover { background: #c62828; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.log { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 8px; margin-top: 8px; font-size: 11px; max-height: 150px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; color: var(--fg2); }
+.log .ok { color: var(--green); }
+.log .err { color: var(--red); }
+.log .warn { color: var(--yellow); }
+.log .info { color: var(--accent); }
+.preview { background: var(--bg); border: 1px dashed var(--border); border-radius: 4px; padding: 8px; margin-top: 8px; font-size: 11px; color: var(--fg2); }
+.preview .highlight { color: var(--accent); font-weight: 600; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+table th, table td { padding: 4px 6px; border-bottom: 1px solid var(--border); text-align: left; }
+table th { color: var(--fg2); font-weight: 600; }
+table td { color: var(--fg); }
+.table-scroll { overflow-x: auto; }
+.triad-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 4px; }
+.triad-btn { padding: 6px 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--fg2); font-family: var(--mono); font-size: 11px; cursor: pointer; text-align: center; transition: all 0.15s; }
+.triad-btn:hover { border-color: var(--accent); color: var(--accent); }
+.triad-btn.selected { background: var(--accent); color: #000; border-color: var(--accent); }
+.triad-btn.locked { opacity: 0.3; cursor: not-allowed; }
+.triad-btn.roadmap { opacity: 0.5; border-style: dashed; }
+.wheel-day { display: inline-block; width: 28px; height: 28px; line-height: 28px; text-align: center; border-radius: 4px; font-size: 10px; cursor: pointer; border: 1px solid var(--border); }
+.wheel-day.active-phase { background: rgba(79,195,247,0.15); border-color: var(--accent); }
+.wheel-day.silence-phase { background: rgba(255,213,79,0.15); border-color: var(--yellow); }
+.wheel-day.impulse-phase { background: rgba(171,71,188,0.15); border-color: #ab47bc; }
+.wheel-day.today { border-width: 2px; font-weight: 700; }
+.wheel-row { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 6px; }
+.health-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.health-row:last-child { border-bottom: none; }
+.health-label { color: var(--fg2); }
+.health-status { font-weight: 600; }
+.health-status.ok { color: var(--green); }
+.health-status.err { color: var(--red); }
+.health-status.warn { color: var(--yellow); }
+.full-width { grid-column: 1 / -1; }
+.roadmap-note { font-size: 10px; color: var(--fg3); font-style: italic; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>PYG_TEST_CONSOLE v0.5.GENEZIS</h1>
+  <div class="meta">
+    <span class="dot" id="healthDot"></span>
+    <span id="healthText">connecting...</span>
+    &nbsp;|&nbsp; v<span id="currentVersion">0.5.1000.01</span>
+    &nbsp;|&nbsp; <span id="utcClock">--:--:--</span> UTC
+  </div>
+</div>
+
+<div class="grid">
+
+  <!-- Блок 1: Колесо Времени -->
+  <div class="block" id="b1-time">
+    <div class="block-head">
+      <span>1. Колесо Времени (Time Wheel)</span>
+      <span class="tag active" id="phaseTag">--</span>
+    </div>
+    <div class="block-body">
+      <div class="field">
+        <label>Текущее время (UTC模拟)</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span id="simTime" style="font-size:16px;color:var(--accent);font-weight:700;">--:--:--</span>
+          <span id="simDate" style="color:var(--fg2);font-size:11px;">--</span>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="timeShift(0)">Сегодня</button>
+        <button class="btn" onclick="timeShift(1)">+1 день</button>
+        <button class="btn" onclick="timeShift(7)">+7 дней</button>
+        <button class="btn" onclick="timeShift(14)">+14 дней</button>
+      </div>
+      <div class="field" style="margin-top:8px;">
+        <label>Прогноз фаз (28 дней)</label>
+        <div class="wheel-row" id="wheelRow"></div>
+      </div>
+      <div class="preview" id="burnPreview" style="display:none;"></div>
+      <div class="log" id="timeLog"></div>
+    </div>
+  </div>
+
+  <!-- Блок 2: Менеджер О.К. -->
+  <div class="block" id="b2-ok">
+    <div class="block-head"><span>2. Менеджер О.К. (Identity)</span></div>
+    <div class="block-body">
+      <div class="field">
+        <label>Открытый Ключик (О.К.)</label>
+        <input type="text" id="okInput" placeholder="::имя::" maxlength="50">
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" onclick="okCreate()">Создать О.К.</button>
+        <button class="btn" onclick="okThreshold()">Threshold</button>
+        <button class="btn" onclick="okList()">Список О.К.</button>
+      </div>
+      <div class="preview" id="okPreview"></div>
+      <div class="log" id="okLog"></div>
+    </div>
+  </div>
+
+  <!-- Блок 3: Эмиссия — Иерархия Триад -->
+  <div class="block" id="b3-emission">
+    <div class="block-head"><span>3. Эмиссия (Protocol ::про.1.П.Л.А.Н.::)</span></div>
+    <div class="block-body">
+      <div class="field">
+        <label>О.К. Инициатора</label>
+        <input type="text" id="emOk" placeholder="::имя::">
+      </div>
+      <div class="field">
+        <label>Триады (T1-T4 основные, T5+ расширение)</label>
+        <div class="triad-grid" id="triadGrid"></div>
+        <div class="roadmap-note" id="triadNote"></div>
+      </div>
+      <div class="field">
+        <label>Количество У.Е.</label>
+        <input type="number" id="emCount" value="3" min="1" max="13">
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" onclick="emPreview()">Preview</button>
+        <button class="btn danger" onclick="emExecute()" id="emExecBtn" disabled>Execute</button>
+      </div>
+      <div class="preview" id="emPreview"></div>
+      <div class="log" id="emLog"></div>
+    </div>
+  </div>
+
+  <!-- Блок 4: Передача -->
+  <div class="block" id="b4-transfer">
+    <div class="block-head"><span>4. Передача (Transfer)</span></div>
+    <div class="block-body">
+      <div class="field">
+        <label>Откуда (О.К.)</label>
+        <input type="text" id="trFrom" placeholder="::отправитель::">
+      </div>
+      <div class="field">
+        <label>Кому (О.К.)</label>
+        <input type="text" id="trTo" placeholder="::получатель::">
+      </div>
+      <div class="field">
+        <label>UUID У.Е.</label>
+        <input type="text" id="trUuid" placeholder="uuid">
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" onclick="trPreview()">Preview</button>
+        <button class="btn danger" onclick="trExecute()" id="trExecBtn" disabled>Execute</button>
+      </div>
+      <div class="preview" id="trPreview"></div>
+      <div class="log" id="trLog"></div>
+    </div>
+  </div>
+
+  <!-- Блок 5: Сгорание -->
+  <div class="block" id="b5-burn">
+    <div class="block-head"><span>5. Сгорание (Burn)</span></div>
+    <div class="block-body">
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>О.К.</th><th>У.Е.</th><th>Статус</th><th>BurnAt</th></tr></thead>
+          <tbody id="burnTable"><tr><td colspan="4" style="color:var(--fg3)">нажмите Refresh</td></tr></tbody>
+        </table>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="burnRefresh()">Refresh</button>
+        <button class="btn danger" onclick="burnExecute()" id="burnExecBtn">Execute Burn</button>
+      </div>
+      <div class="log" id="burnLog"></div>
+    </div>
+  </div>
+
+  <!-- Блок 6: Replay Observatory -->
+  <div class="block" id="b6-replay">
+    <div class="block-head">
+      <span>6. Replay Observatory</span>
+      <span class="tag" id="replayStatus">--</span>
+    </div>
+    <div class="block-body">
+      <div class="health-row">
+        <span class="health-label">Текущий баланс У.Е.</span>
+        <span id="replayCurrent">--</span>
+      </div>
+      <div class="health-row">
+        <span class="health-label">Восстановлено через Replay</span>
+        <span id="replayRebuilt">--</span>
+      </div>
+      <div class="health-row">
+        <span class="health-label">Статус</span>
+        <span class="health-status" id="replayMatch">--</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" onclick="replayRun()">Run Replay</button>
+        <button class="btn" onclick="replayCheck()">Check Status</button>
+      </div>
+      <div class="log" id="replayLog"></div>
+    </div>
+  </div>
+
+  <!-- Блок 7: Присутствие -->
+  <div class="block" id="b7-presence">
+    <div class="block-head"><span>7. Присутствие (Presence)</span></div>
+    <div class="block-body">
+      <div class="field">
+        <label>О.К.</label>
+        <input type="text" id="prOk" placeholder="::имя::">
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="prPresence()">Presence</button>
+        <button class="btn" onclick="prMirror()">Mirror</button>
+        <button class="btn" onclick="prObserver()">Observer</button>
+      </div>
+      <div class="preview" id="prPreview"></div>
+      <div class="log" id="prLog"></div>
+    </div>
+  </div>
+
+  <!-- Блок 8: Переключатель Версий -->
+  <div class="block" id="b8-version">
+    <div class="block-head"><span>8. Evolution Switcher</span></div>
+    <div class="block-body">
+      <div class="field">
+        <label>Версия системы</label>
+        <select id="versionSelect" onchange="versionChange()">
+          <option value="0.5.1000.01" selected>v0.5.1000.01 — Строитель (ACTIVE)</option>
+          <option value="1.0.01" disabled>v1.0.01 — Пилот (ROADMAP)</option>
+          <option value="2.0.01" disabled>v2.0.01 — ГЕГЕМОН (ROADMAP)</option>
+          <option value="3.0.01" disabled>v3.0.01 (ROADMAP)</option>
+          <option value="4.0.01" disabled>v4.0.01 — ОСВОБОЖДЕНИЕ (ROADMAP)</option>
+        </select>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Версия</th><th>Триады</th><th>Лимит</th><th>Статус</th></tr></thead>
+          <tbody id="versionTable"></tbody>
+        </table>
+      </div>
+      <div class="roadmap-note">Roadmap-версии: правила недоступны в текущем Canon Layer v0.5.1000.01</div>
+    </div>
+  </div>
+
+  <!-- Блок 9: SSOT Inspector -->
+  <div class="block" id="b9-ssot">
+    <div class="block-head"><span>9. SSOT Inspector (acts_log)</span></div>
+    <div class="block-body">
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>act_id</th><th>act_type</th><th>actor_ok</th><th>target_ok</th><th>created_at</th></tr></thead>
+          <tbody id="ssotTable"><tr><td colspan="5" style="color:var(--fg3)">нажмите Refresh</td></tr></tbody>
+        </table>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="ssotRefresh()">Refresh</button>
+      </div>
+      <div class="log" id="ssotLog"></div>
+    </div>
+  </div>
+
+  <!-- Блок 10: Canon Health -->
+  <div class="block" id="b10-health">
+    <div class="block-head"><span>10. Canon Health</span></div>
+    <div class="block-body">
+      <div class="health-row"><span class="health-label">SSOT (acts_log)</span><span class="health-status" id="hSsot">--</span></div>
+      <div class="health-row"><span class="health-label">Replay</span><span class="health-status" id="hReplay">--</span></div>
+      <div class="health-row"><span class="health-label">Metronome</span><span class="health-status" id="hMetronome">--</span></div>
+      <div class="health-row"><span class="health-label">Canon Layer</span><span class="health-status" id="hCanon">--</span></div>
+      <div class="health-row"><span class="health-label">Database</span><span class="health-status" id="hDb">--</span></div>
+      <div class="btn-row">
+        <button class="btn" onclick="healthCheck()">Check All</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Блок 11: Тест-Цикл -->
+  <div class="block full-width" id="b11-cycle">
+    <div class="block-head"><span>11. Тест-Цикл (Full Lifecycle)</span></div>
+    <div class="block-body">
+      <div class="btn-row">
+        <button class="btn primary" onclick="cycleRun()">Запустить тест-цикл</button>
+        <button class="btn" onclick="cycleReset()">Сброс</button>
+      </div>
+      <div class="log" id="cycleLog" style="max-height:200px;"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Пигмалион MVP:.strict SSOT Policy — консоль является Observer Layer
+// Все расчёты выполняются через backend API (Canon Layer)
+// Временная шкала — визуальная симуляция, не меняет БД
+
+const API = 'http://localhost:3001';
+const STATE = { dayShift: 0, version: '0.5.1000.01', selectedTriads: [], emPreviewData: null };
+
+// Пигмалион MVP: Canonical constants from emission-policy.js (mirror, NOT source of truth)
+const VERSION_MAP = {
+  '0.5.1000.01': { stage: 2, label: 'Строитель', triads: ['T1','T2','T3','T4','T5'], min: 3, max: 13, status: 'active' },
+  '1.0.01': { stage: 3, label: 'Пилот', triads: ['T1','T2','T3','T4','T5','E1','E2'], min: 3, max: 13, bonus: [0,16,32], status: 'roadmap' },
+  '2.0.01': { stage: 4, label: 'ГЕГЕМОН', triads: ['T1','T2','T3','T4','T5','K1'], min: 3, max: 22, status: 'roadmap' },
+  '3.0.01': { stage: 5, label: 'v3.0.01', triads: ['T1','T2','T3','T4','T5','K2'], min: 3, max: 30, status: 'roadmap' },
+  '4.0.01': { stage: 6, label: 'ОСВОБОЖДЕНИЕ', triads: ['T1','T2','T3','T4','K3'], min: 3, max: 37, status: 'roadmap' }
+};
+
+const TRIAD_DEFS = {
+  T1: { name: 'Знания', nums: [1,2,3] },
+  T2: { name: 'Практика', nums: [4,5,6] },
+  T3: { name: 'Творчество', nums: [7,8,9] },
+  T4: { name: 'Досуг/ЗОЖ', nums: [10,11,12] },
+  T5: { name: '#21', nums: [21] },
+  K1: { name: 'ИИПП', nums: [13,14,15,16] },
+  K2: { name: 'ИЯ', nums: [17,18,19,20] },
+  K3: { name: 'K3', nums: [21,22,23,24] },
+  E1: { name: 'E1', nums: [] },
+  E2: { name: 'E2', nums: [] }
+};
+
+// Пигмалион MVP: helpers
+function $(id) { return document.getElementById(id); }
+function log(boxId, msg, cls) { const el = $(boxId); el.innerHTML += `<span class="${cls||''}">${msg}</span>\n`; el.scrollTop = el.scrollHeight; }
+function clearLog(boxId) { $(boxId).innerHTML = ''; }
+
+async function api(method, path, body) {
+  try {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(API + path, opts);
+    const data = await r.json();
+    return { ok: r.ok, status: r.status, data };
+  } catch (e) { return { ok: false, status: 0, data: { error: e.message } }; }
+}
+
+// === Блок 1: Колесо Времени ===
+function timeShift(days) {
+  STATE.dayShift = days;
+  renderWheel();
+  renderSimTime();
+  log('timeLog', `[time] Смещение: +${days} дн.`, 'info');
+}
+
+function getSimTimestamp() {
+  const now = new Date();
+  now.setUTCDate(now.getUTCDate() + STATE.dayShift);
+  return now;
+}
+
+function renderSimTime() {
+  const t = getSimTimestamp();
+  $('simTime').textContent = t.toISOString().slice(11,19);
+  $('simDate').textContent = t.toISOString().slice(0,10);
+  const phase = getPhase(t);
+  $('phaseTag').textContent = phase;
+  $('phaseTag').className = 'tag ' + (phase === 'active' ? 'active' : phase === 'silence' ? 'warn' : '');
+  if (phase === 'silence') {
+    $('phaseTag').style.background = 'var(--yellow)';
+    $('phaseTag').style.color = '#000';
+  } else if (phase === 'impulse') {
+    $('phaseTag').style.background = '#ab47bc';
+    $('phaseTag').style.color = '#fff';
+  } else {
+    $('phaseTag').style.background = 'var(--green)';
+    $('phaseTag').style.color = '#000';
+  }
+}
+
+// Пигмалион MVP: Phase calculation mirrors metronome.js (NOT source of truth)
+function getPhase(d) {
+  const h = d.getUTCHours(), m = d.getUTCMinutes();
+  const mins = h * 60 + m;
+  if (mins >= 235 && mins < 1200) return 'active';   // 03:55-19:55 (approx)
+  if (mins >= 1195 && mins < 1200) return 'silence';  // 19:55-20:00
+  return 'impulse';                                     // 20:00-03:59
+}
+
+function renderWheel() {
+  const row = $('wheelRow');
+  row.innerHTML = '';
+  const base = new Date();
+  for (let i = 0; i < 28; i++) {
+    const d = new Date(base);
+    d.setUTCDate(d.getUTCDate() + i);
+    const phase = getPhase(d);
+    const cls = phase === 'active' ? 'active-phase' : phase === 'silence' ? 'silence-phase' : 'impulse-phase';
+    const today = i === STATE.dayShift ? ' today' : '';
+    const dayNum = d.getUTCDate();
+    row.innerHTML += `<div class="wheel-day ${cls}${today}" title="${d.toISOString().slice(0,10)} ${phase}">${dayNum}</div>`;
+  }
+}
+
+// === Блок 2: Менеджер О.К. ===
+async function okCreate() {
+  const ok = $('okInput').value.trim();
+  if (!ok) { log('okLog', 'Введите О.К.', 'err'); return; }
+  log('okLog', `[ok] Создание ${ok}...`, 'info');
+  const r = await api('POST', '/api/ok', { ok_key: ok });
+  if (r.ok) { log('okLog', `✓ О.К. ${ok} создан`, 'ok'); $('okPreview').innerHTML = `<span class="highlight">${ok}</span> зарегистрирован`; }
+  else { log('okLog', `✗ Ошибка: ${r.data.error || r.status}`, 'err'); }
+}
+
+async function okThreshold() {
+  const ok = $('okInput').value.trim();
+  if (!ok) { log('okLog', 'Введите О.К.', 'err'); return; }
+  log('okLog', `[threshold] ${ok}...`, 'info');
+  const r = await api('POST', '/api/threshold', { ok_key: ok });
+  if (r.ok) { log('okLog', `✓ Threshold пройден для ${ok}`, 'ok'); }
+  else { log('okLog', `✗ ${r.data.error || r.status}`, 'err'); }
+}
+
+async function okList() {
+  log('okLog', '[ok] Загрузка списка...', 'info');
+  const r = await api('GET', '/api/observer');
+  if (r.ok && r.data.ok_list) {
+    $('okPreview').innerHTML = r.data.ok_list.map(o => `<div>${o.ok_key} — ${o.last_act_type || 'no acts'}</div>`).join('');
+    log('okLog', `✓ Найдено: ${r.data.ok_list.length}`, 'ok');
+  } else { log('okLog', `✗ ${r.data.error || 'no data'}`, 'err'); }
+}
+
+// === Блок 3: Эмиссия (иерархия триад) ===
+function renderTriads() {
+  const grid = $('triadGrid');
+  grid.innerHTML = '';
+  const v = VERSION_MAP[STATE.version];
+  const baseTriads = ['T1','T2','T3','T4'];
+  const extTriads = v.triads.filter(t => !baseTriads.includes(t));
+
+  baseTriads.forEach(t => {
+    const def = TRIAD_DEFS[t];
+    const sel = STATE.selectedTriads.includes(t);
+    grid.innerHTML += `<div class="triad-btn ${sel?'selected':''}" onclick="toggleTriad('${t}')">${t}<br><span style="font-size:9px">${def.name}</span></div>`;
+  });
+
+  const allBaseSelected = baseTriads.every(t => STATE.selectedTriads.includes(t));
+  extTriads.forEach(t => {
+    const def = TRIAD_DEFS[t];
+    const sel = STATE.selectedTriads.includes(t);
+    const locked = !allBaseSelected && v.status === 'active';
+    const roadmap = v.status === 'roadmap';
+    const cls = sel ? 'selected' : locked ? 'locked' : roadmap ? 'roadmap' : '';
+    grid.innerHTML += `<div class="triad-btn ${cls}" onclick="${locked||roadmap?'':`toggleTriad('${t}')`}" title="${roadmap?'ROADMAP: недоступно в v0.5':locked?'Сначала выберите T1-T4':''}">${t}<br><span style="font-size:9px">${def.name}</span></div>`;
+  });
+
+  $('triadNote').textContent = allBaseSelected ? '' : 'Выберите T1-T4 для разблокировки расширения';
+  updateEmCount();
+}
+
+function toggleTriad(t) {
+  const idx = STATE.selectedTriads.indexOf(t);
+  if (idx >= 0) STATE.selectedTriads.splice(idx, 1);
+  else STATE.selectedTriads.push(t);
+  renderTriads();
+}
+
+function updateEmCount() {
+  const v = VERSION_MAP[STATE.version];
+  $('emCount').min = v.min;
+  $('emCount').max = v.max;
+  if (parseInt($('emCount').value) < v.min) $('emCount').value = v.min;
+  if (parseInt($('emCount').value) > v.max) $('emCount').value = v.max;
+}
+
+async function emPreview() {
+  const ok = $('emOk').value.trim();
+  const count = parseInt($('emCount').value);
+  if (!ok) { log('emLog', 'Введите О.К.', 'err'); return; }
+  if (STATE.selectedTriads.length === 0) { log('emLog', 'Выберите триаду', 'err'); return; }
+
+  log('emLog', `[preview] Запрос прогноза у Canon Layer...`, 'info');
+
+  // Пигмалион MVP: Strict SSOT — preview через API, не локальный расчёт
+  const r = await api('POST', '/api/acts', {
+    act_type: 'EMISSION', actor_ok: ok, count, triads: STATE.selectedTriads, preview: true
+  });
+
+  if (r.ok) {
+    STATE.emPreviewData = r.data;
+    const burnAt = r.data.burnAt || 'рассчитывается';
+    $('emPreview').innerHTML = `
+      <div>О.К.: <span class="highlight">${ok}</span></div>
+      <div>Триады: <span class="highlight">${STATE.selectedTriads.join(', ')}</span></div>
+      <div>У.Е.: <span class="highlight">${count}</span></div>
+      <div>BurnAt: <span class="highlight">${burnAt}</span></div>
+      <div style="margin-top:6px;color:var(--yellow)">⚠ Согласно Канону, ваши У.Е. сгорят через 28 часов, создав вечный маркер У.М. у получателя</div>
+    `;
+    $('emExecBtn').disabled = false;
+    log('emLog', `✓ Preview готов`, 'ok');
+  } else {
+    log('emLog', `✗ ${r.data.error || r.status}`, 'err');
+    $('emExecBtn').disabled = true;
+  }
+}
+
+async function emExecute() {
+  const ok = $('emOk').value.trim();
+  const count = parseInt($('emCount').value);
+  log('emLog', `[execute] Эмиссия ${count} У.Е. для ${ok}...`, 'info');
+
+  const r = await api('POST', '/api/acts', {
+    act_type: 'EMISSION', actor_ok: ok, count, triads: STATE.selectedTriads
+  });
+
+  if (r.ok) {
+    log('emLog', `✓ Эмиссия выполнена`, 'ok');
+    $('emExecBtn').disabled = true;
+    $('emPreview').innerHTML = '<span class="highlight">Акт записан в acts_log</span>';
+  } else {
+    log('emLog', `✗ ${r.data.error || r.status}`, 'err');
+  }
+}
+
+// === Блок 4: Передача ===
+async function trPreview() {
+  const from = $('trFrom').value.trim(), to = $('trTo').value.trim(), uuid = $('trUuid').value.trim();
+  if (!from || !to) { log('trLog', 'Заполните О.К.', 'err'); return; }
+
+  log('trLog', '[preview] Запрос у Canon Layer...', 'info');
+  const r = await api('POST', '/api/acts', {
+    act_type: 'TRANSFER', actor_ok: from, target_ok: to, ue_uuid: uuid, preview: true
+  });
+
+  if (r.ok) {
+    $('trPreview').innerHTML = `
+      <div>Передача: <span class="highlight">${from}</span> → <span class="highlight">${to}</span></div>
+      <div>У.Е.: <span class="highlight">${uuid || 'auto'}</span></div>
+      <div style="margin-top:6px;color:var(--yellow)">⚠ Передача создаёт У.М. (Recognition Marker) и ребро в ro.DAG</div>
+    `;
+    $('trExecBtn').disabled = false;
+    log('trLog', `✓ Preview готов`, 'ok');
+  } else {
+    log('trLog', `✗ ${r.data.error || r.status}`, 'err');
+    $('trExecBtn').disabled = true;
+  }
+}
+
+async function trExecute() {
+  const from = $('trFrom').value.trim(), to = $('trTo').value.trim(), uuid = $('trUuid').value.trim();
+  log('trLog', `[execute] Передача...`, 'info');
+
+  const r = await api('POST', '/api/acts', {
+    act_type: 'TRANSFER', actor_ok: from, target_ok: to, ue_uuid: uuid
+  });
+
+  if (r.ok) { log('trLog', `✓ Передача выполнена`, 'ok'); $('trExecBtn').disabled = true; }
+  else { log('trLog', `✗ ${r.data.error || r.status}`, 'err'); }
+}
+
+// === Блок 5: Сгорание ===
+async function burnRefresh() {
+  log('burnLog', '[burn] Загрузка...', 'info');
+  const r = await api('GET', '/api/observer');
+  if (r.ok && r.data.ue_list) {
+    const rows = r.data.ue_list.map(u =>
+      `<tr><td>${u.actor_ok||'-'}</td><td>${u.ue_number||u.ue_uuid?.slice(0,8)||'-'}</td><td>${u.status}</td><td>${u.burn_at||'-'}</td></tr>`
+    ).join('');
+    $('burnTable').innerHTML = rows || '<tr><td colspan="4" style="color:var(--fg3)">нет данных</td></tr>';
+    log('burnLog', `✓ Загружено`, 'ok');
+  } else { log('burnLog', `✗ ${r.data.error||'no data'}`, 'err'); }
+}
+
+async function burnExecute() {
+  log('burnLog', '[burn] Выполнение...', 'info');
+  const r = await api('POST', '/api/burn');
+  if (r.ok) {
+    log('burnLog', `✓ ${r.data.burned||0} У.Е. сгорело`, 'ok');
+    burnRefresh();
+  } else { log('burnLog', `✗ ${r.data.error||r.status}`, 'err'); }
+}
+
+// === Блок 6: Replay Observatory ===
+async function replayRun() {
+  log('replayLog', '[replay] Запуск полной реконструкции...', 'info');
+  const r = await api('POST', '/api/replay');
+  if (r.ok) {
+    const match = r.data.mismatches === 0;
+    $('replayStatus').textContent = match ? 'MATCH' : 'MISMATCH';
+    $('replayStatus').className = 'tag ' + (match ? 'match' : 'mismatch');
+    $('replayCurrent').textContent = r.data.current_count || '--';
+    $('replayRebuilt').textContent = r.data.rebuilt_count || '--';
+    $('replayMatch').textContent = match ? '✓ MATCH — Система здорова' : '✗ MISMATCH — Обнаружено расхождение';
+    $('replayMatch').className = 'health-status ' + (match ? 'ok' : 'err');
+    log('replayLog', match ? '✓ SSOT подтверждён: 0 mismatch' : `✗ MISMATCH: ${r.data.mismatches} расхождений`, match ? 'ok' : 'err');
+  } else { log('replayLog', `✗ ${r.data.error||r.status}`, 'err'); }
+}
+
+async function replayCheck() {
+  log('replayLog', '[replay] Проверка статуса...', 'info');
+  const r = await api('GET', '/api/observer');
+  if (r.ok) {
+    $('replayCurrent').textContent = r.data.ue_count || '--';
+    log('replayLog', `✓ Текущий баланс: ${r.data.ue_count||'--'} У.Е.`, 'ok');
+  }
+}
+
+// === Блок 7: Присутствие ===
+async function prPresence() {
+  const ok = $('prOk').value.trim();
+  if (!ok) { log('prLog', 'Введите О.К.', 'err'); return; }
+  const r = await api('GET', `/api/presence/${encodeURIComponent(ok)}`);
+  if (r.ok) {
+    $('prPreview').innerHTML = `<pre style="white-space:pre-wrap">${JSON.stringify(r.data, null, 2)}</pre>`;
+    log('prLog', `✓ Presence загружено`, 'ok');
+  } else { log('prLog', `✗ ${r.data.error||r.status}`, 'err'); }
+}
+
+async function prMirror() {
+  const ok = $('prOk').value.trim();
+  if (!ok) { log('prLog', 'Введите О.К.', 'err'); return; }
+  const r = await api('GET', `/api/mirror/${encodeURIComponent(ok)}`);
+  if (r.ok) {
+    $('prPreview').innerHTML = `<pre style="white-space:pre-wrap">${JSON.stringify(r.data, null, 2)}</pre>`;
+    log('prLog', `✓ Mirror загружен`, 'ok');
+  } else { log('prLog', `✗ ${r.data.error||r.status}`, 'err'); }
+}
+
+async function prObserver() {
+  const r = await api('GET', '/api/observer');
+  if (r.ok) {
+    $('prPreview').innerHTML = `<pre style="white-space:pre-wrap">${JSON.stringify(r.data, null, 2)}</pre>`;
+    log('prLog', `✓ Observer data`, 'ok');
+  } else { log('prLog', `✗ ${r.data.error||r.status}`, 'err'); }
+}
+
+// === Блок 8: Evolution Switcher ===
+function renderVersionTable() {
+  const rows = Object.entries(VERSION_MAP).map(([v, cfg]) => {
+    const active = v === STATE.version;
+    return `<tr style="${active?'background:var(--bg3)':''}">
+      <td>${v}</td>
+      <td>${cfg.triads.join(', ')}</td>
+      <td>${cfg.min}-${cfg.max}</td>
+      <td><span class="tag ${cfg.status}">${cfg.status === 'active' ? 'ACTIVE' : 'ROADMAP'}</span></td>
+    </tr>`;
+  }).join('');
+  $('versionTable').innerHTML = rows;
+}
+
+function versionChange() {
+  STATE.version = $('versionSelect').value;
+  $('currentVersion').textContent = STATE.version;
+  renderTriads();
+  renderVersionTable();
+}
+
+// === Блок 9: SSOT Inspector ===
+async function ssotRefresh() {
+  log('ssotLog', '[ssot] Загрузка acts_log...', 'info');
+  const r = await api('GET', '/api/observer');
+  if (r.ok && r.data.recent_acts) {
+    const rows = r.data.recent_acts.slice(0, 20).map(a =>
+      `<tr><td>${(a.act_id||'').slice(0,8)}</td><td>${a.act_type}</td><td>${a.actor_ok||'-'}</td><td>${a.target_ok||'-'}</td><td>${a.created_at||'-'}</td></tr>`
+    ).join('');
+    $('ssotTable').innerHTML = rows || '<tr><td colspan="5" style="color:var(--fg3)">нет данных</td></tr>';
+    log('ssotLog', `✓ Загружено: ${r.data.recent_acts.length} записей`, 'ok');
+  } else { log('ssotLog', `✗ ${r.data.error||'no data'}`, 'err'); }
+}
+
+// === Блок 10: Canon Health ===
+async function healthCheck() {
+  const checks = [
+    { id: 'hDb', fn: () => api('GET', '/health') },
+    { id: 'hSsot', fn: () => api('GET', '/api/observer') },
+    { id: 'hMetronome', fn: () => api('GET', '/api/system') },
+    { id: 'hCanon', fn: () => api('GET', '/api/observer') },
+    { id: 'hReplay', fn: () => api('GET', '/api/observer') },
+  ];
+
+  for (const c of checks) {
+    const r = await c.fn();
+    const el = $(c.id);
+    if (r.ok) { el.textContent = 'OK'; el.className = 'health-status ok'; }
+    else { el.textContent = 'ERROR'; el.className = 'health-status err'; }
+  }
+}
+
+// === Блок 11: Тест-Цикл ===
+async function cycleRun() {
+  clearLog('cycleLog');
+  const testOk = '::test_' + Date.now() + '::';
+  const testOk2 = '::test2_' + Date.now() + '::';
+  const steps = [
+    { name: '1. Создание О.К.', fn: () => api('POST', '/api/ok', { ok_key: testOk }) },
+    { name: '2. Threshold', fn: () => api('POST', '/api/threshold', { ok_key: testOk }) },
+    { name: '3. Presence', fn: () => api('GET', `/api/presence/${encodeURIComponent(testOk)}`) },
+    { name: '4. Эмиссия (3 У.Е.)', fn: () => api('POST', '/api/acts', { act_type: 'EMISSION', actor_ok: testOk, count: 3, triads: ['T1'] }) },
+    { name: '5. Burn', fn: () => api('POST', '/api/burn') },
+    { name: '6. Replay Check', fn: () => api('GET', '/api/observer') },
+  ];
+
+  for (const step of steps) {
+    log('cycleLog', `\n--- ${step.name} ---`, 'info');
+    const r = await step.fn();
+    if (r.ok) log('cycleLog', `  ✓ PASS`, 'ok');
+    else log('cycleLog', `  ✗ FAIL: ${r.data.error||r.status}`, 'err');
+  }
+  log('cycleLog', '\n=== Тест-цикл завершён ===', 'info');
+}
+
+function cycleReset() { clearLog('cycleLog'); }
+
+// === UTC Clock ===
+function updateClock() {
+  const now = new Date();
+  $('utcClock').textContent = now.toISOString().slice(11,19);
+}
+
+// === Health on load ===
+async function initHealth() {
+  const r = await api('GET', '/health');
+  if (r.ok) {
+    $('healthDot').className = 'dot ok';
+    $('healthText').textContent = 'connected';
+  } else {
+    $('healthDot').className = 'dot err';
+    $('healthText').textContent = 'disconnected';
+  }
+}
+
+// === Init ===
+renderWheel();
+renderSimTime();
+renderTriads();
+renderVersionTable();
+initHealth();
+setInterval(updateClock, 1000);
+setInterval(renderSimTime, 1000);
+</script>
+</body>
+</html>

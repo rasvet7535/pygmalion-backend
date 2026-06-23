@@ -1,0 +1,7 @@
+{
+  "name": "@pygmalion/pda",
+  "version": "0.4.02",
+  "description": "Pygmalion Digital Agent — слой маршрутизации воли к Canon Layer",
+  "main": "index.js",
+  "private": true
+}

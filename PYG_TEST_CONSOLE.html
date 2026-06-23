@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PYG TEST CONSOLE v0.5.GENEZIS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0e14; --surface: #121820; --border: #1e2a36;
+  --text: #c8d6e5; --text-dim: #6080a0;
+  --accent: #00bcd4; --accent2: #7c4dff;
+  --green: #00e676; --red: #ff5252; --yellow: #ffd740; --orange: #ff9100;
+  --font: 'JetBrains Mono', 'Consolas', monospace; --radius: 4px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: var(--font); font-size: 13px; line-height: 1.5; padding: 16px;
+}
+.header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.header h1 { font-size: 16px; font-weight: 700; color: var(--accent); letter-spacing: 1px; }
+.header .sub { color: var(--text-dim); font-size: 11px; }
+.header .api-bar { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+input, select, button, textarea {
+  font-family: var(--font); font-size: 12px; background: var(--surface);
+  color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px 8px;
+}
+input:focus, select:focus { outline: none; border-color: var(--accent); }
+button { cursor: pointer; background: var(--border); transition: all .15s; padding: 4px 12px; }
+button:hover { background: #2a3a4a; } button:active { transform: scale(0.97); }
+button.sm { padding: 2px 8px; font-size: 11px; }
+button.primary { background: var(--accent); color: #000; font-weight: 600; }
+button.primary:hover { background: #26e0f0; }
+button.danger { background: var(--red); color: #fff; }
+button.danger:hover { background: #ff6b6b; }
+button.green { background: var(--green); color: #000; }
+button.green:hover { background: #30ff8a; }
+button.orange { background: var(--orange); color: #000; }
+button.orange:hover { background: #ffaa33; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+.block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+.block h2 { font-size: 13px; font-weight: 600; color: var(--accent2); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.block h2 .badge { font-size: 9px; font-weight: 400; color: var(--text-dim); background: var(--bg); padding: 1px 6px; border-radius: 8px; }
+.row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+.row label { color: var(--text-dim); font-size: 11px; min-width: 60px; }
+.col { display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; }
+pre.log { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px; font-size: 11px; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+pre.log .ok { color: var(--green); } pre.log .err { color: var(--red); } pre.log .info { color: var(--accent); } pre.log .warn { color: var(--yellow); }
+.phase-bar { display: flex; height: 20px; border-radius: var(--radius); overflow: hidden; margin: 6px 0; font-size: 9px; font-weight: 600; }
+.phase-active { background: var(--green); color: #000; display: flex; align-items: center; justify-content: center; }
+.phase-silence { background: var(--red); color: #fff; display: flex; align-items: center; justify-content: center; }
+.phase-impulse { background: var(--accent2); color: #fff; display: flex; align-items: center; justify-content: center; }
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+.status-ok { background: var(--green); } .status-fail { background: var(--red); } .status-degraded { background: var(--yellow); }
+.triad-btn { padding: 2px 8px; font-size: 11px; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; background: var(--surface); transition: all .15s; }
+.triad-btn:hover { border-color: var(--accent); } .triad-btn.selected { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+.triad-btn.locked { opacity: 0.3; cursor: not-allowed; }
+.triad-btn.base { border-color: var(--green); } .triad-btn.ext { border-color: var(--orange); }
+.health-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.health-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: var(--bg); border-radius: var(--radius); font-size: 11px; }
+.health-item .label { flex: 1; color: var(--text-dim); }
+.health-item .val { font-weight: 600; }
+table.acts-table { width: 100%; font-size: 11px; border-collapse: collapse; }
+table.acts-table th { text-align: left; color: var(--text-dim); padding: 4px 6px; border-bottom: 1px solid var(--border); font-weight: 400; }
+table.acts-table td { padding: 4px 6px; border-bottom: 1px solid var(--border); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+table.acts-table tr:hover { background: var(--border); }
+.wheel-nav { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.wheel-date { font-size: 14px; font-weight: 600; color: var(--accent); }
+.replay-big { font-size: 24px; font-weight: 700; text-align: center; padding: 12px; }
+.roadmap-item { padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+.roadmap-item.active { border-color: var(--green); } .roadmap-item.inactive { opacity: 0.5; }
+.silence-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,82,82,0.15); z-index: 100; pointer-events: none; }
+.silence-overlay.show { display: block; }
+.silence-banner { background: var(--red); color: #fff; text-align: center; padding: 6px; font-size: 12px; font-weight: 600; }
+.vkeyboard { display: flex; flex-wrap: wrap; gap: 2px; max-width: 400px; margin-top: 4px; }
+.vkeyboard button { width: 28px; height: 28px; font-size: 11px; padding: 0; text-align: center; }
+.vkeyboard button.spacer { width: calc(28px * 5 + 8px); background: transparent; border: none; cursor: default; }
+@media (max-width: 500px) { .vkeyboard { max-width: 100%; } }
+</style>
+</head>
+<body>
+
+<div class="silence-overlay" id="silenceOverlay"></div>
+
+<div class="header">
+  <h1>✦ PYG TEST CONSOLE</h1>
+  <span class="sub">v0.5.GENEZIS · Observer Layer · Strict SSOT</span>
+  <div class="api-bar">
+    <input id="apiUrl" value="http://localhost:3002" style="width:180px" placeholder="API URL">
+    <span id="healthDot" class="status-dot status-degraded"></span>
+    <span id="healthLabel" style="font-size:11px;color:var(--text-dim)">checking...</span>
+  </div>
+</div>
+
+<div class="grid">
+<!-- BLOCK 1: Колесо Времени -->
+<div class="block" id="block1">
+  <h2>⏱ Колесо Времени <span class="badge">Time Wheel</span></h2>
+  <div class="row">
+    <span class="wheel-date" id="wheelDate"></span>
+    <span style="font-size:11px;color:var(--text-dim)" id="wheelPhase"></span>
+  </div>
+  <div class="phase-bar" id="phaseBar">
+    <div class="phase-active" style="flex:7.5">ACTIVE 04:00–19:55</div>
+    <div class="phase-silence" style="flex:0.3">⏸</div>
+    <div class="phase-impulse" style="flex:4.2">IMPULSE 20:00–03:59</div>
+  </div>
+  <div class="row wheel-nav">
+    <button onclick="timeTravel(-28)" class="sm">-28д</button>
+    <button onclick="timeTravel(-7)" class="sm">-7д</button>
+    <button onclick="timeTravel(-1)" class="sm">-1д</button>
+    <button onclick="timeTravel(0)" class="sm">Сегодня</button>
+    <button onclick="timeTravel(1)" class="sm">+1д</button>
+    <button onclick="timeTravel(7)" class="sm">+7д</button>
+    <button onclick="timeTravel(28)" class="sm">+28д</button>
+  </div>
+  <div class="col">
+    <label style="font-size:11px;color:var(--text-dim)">Прогноз сгораний:</label>
+    <pre class="log" id="burnForecast" style="max-height:80px">Загрузка...</pre>
+  </div>
+</div>
+
+<!-- BLOCK 2: Менеджер О.К. -->
+<div class="block" id="block2">
+  <h2>🔑 Менеджер О.К. <span class="badge">Identity</span></h2>
+  <div class="row">
+    <label>О.К.:</label>
+    <input id="okKey" value="::ТЕСТ1::" style="flex:1;font-family:inherit">
+    <button onclick="okCreate()" class="primary sm">Создать</button>
+    <button onclick="okPresence()" class="sm">Присутствие</button>
+  </div>
+  <div class="vkeyboard" id="virtualKeyboard"></div>
+  <div class="row" style="margin-top:4px">
+    <label style="font-size:11px;color:var(--text-dim)">✓: 3–50 символов, А-Я, A-Z, 0-9, 𝕯</label>
+  </div>
+  <pre class="log" id="okLog">О.К. менеджер готов</pre>
+</div>
+
+<!-- BLOCK 3: Эмиссия -->
+<div class="block" id="block3">
+  <h2>📤 Эмиссия <span class="badge">Protocol ::про.1.П.Л.А.Н.::</span></h2>
+  <div class="row">
+    <label>О.К.:</label>
+    <input id="emitOk" value="::ТЕСТ1::" style="flex:1">
+  </div>
+  <div class="row">
+    <label>Версия:</label>
+    <span id="emitVersion" style="font-size:11px;color:var(--text-dim)">—</span>
+  </div>
+  <div class="row" style="flex-wrap:wrap" id="triadSelector"></div>
+  <div class="row">
+    <label>Всего:</label>
+    <span id="emitTotal">0</span> <span style="font-size:11px;color:var(--text-dim)">У.Е. (мин: <span id="emitMin">3</span>, макс: <span id="emitMax">13</span>)</span>
+  </div>
+  <div class="row" id="emitPreview" style="font-size:11px;color:var(--text-dim);display:none">
+    ⓘ Согласно Канону, ваши У.Е. сгорят через <span id="previewBurn">28</span> часов, создав вечный маркер У.М. у получателя.
+  </div>
+  <div class="row">
+    <button onclick="emitExecute()" class="green sm" id="emitBtn">Эмитировать</button>
+    <span id="emitSilenceWarn" style="color:var(--red);font-size:11px;display:none">⛔ Фаза Тишины. Акт не может быть совершён.</span>
+  </div>
+  <pre class="log" id="emitLog">Эмиссия готова</pre>
+</div>
+
+<!-- BLOCK 4: Передача -->
+<div class="block" id="block4">
+  <h2>↗ Передача <span class="badge">Transfer</span></h2>
+  <div class="row"><label>От:</label><input id="xferFrom" value="::ТЕСТ1::" style="flex:1"></div>
+  <div class="row"><label>Кому:</label><input id="xferTo" value="::ТЕСТ2::" style="flex:1"></div>
+  <div class="row"><label>UE UUID:</label><input id="xferUuid" placeholder="uuid У.Е." style="flex:1"></div>
+  <div class="row">
+    <button onclick="xferExecute()" class="orange sm">Передать</button>
+    <span id="xferSilenceWarn" style="color:var(--red);font-size:11px;display:none">⛔ Передача только в ACTIVE фазе.</span>
+  </div>
+  <pre class="log" id="xferLog">Передача готова</pre>
+</div>
+
+<!-- BLOCK 5: Сжигание -->
+<div class="block" id="block5">
+  <h2>🔥 Сжигание <span class="badge">Burn</span></h2>
+  <div class="row">
+    <button onclick="burnExecute()" class="danger sm">Сжечь истёкшие</button>
+  </div>
+  <pre class="log" id="burnLog">Сжигание готово</pre>
+</div>
+
+<!-- BLOCK 6: Присутствие -->
+<div class="block" id="block6">
+  <h2>👁 Присутствие <span class="badge">Presence</span></h2>
+  <div class="row">
+    <label>О.К.:</label>
+    <input id="presenceOk" value="::ТЕСТ1::" style="flex:1">
+    <button onclick="presenceCheck()" class="sm">Проверить</button>
+  </div>
+  <pre class="log" id="presenceLog">Присутствие готово</pre>
+</div>
+
+<!-- BLOCK 7: Реплей -->
+<div class="block" id="block7">
+  <h2>🔄 Реплей <span class="badge">Replay</span></h2>
+  <div class="row">
+    <button onclick="replayExecute()" class="primary sm">Запустить Реплей</button>
+  </div>
+  <pre class="log" id="replayLog">Реплей готов</pre>
+</div>
+</div>
+
+<!-- BLOCK 8: Evolution Switcher (full width) -->
+<div class="block" style="margin-bottom:12px">
+  <h2>🧬 Evolution Switcher <span class="badge">Roadmap</span></h2>
+  <div id="versionList"></div>
+</div>
+
+<!-- ROW 2: Blocks 9 + 10 side by side -->
+<div class="grid">
+
+<!-- BLOCK 9: Replay Observatory -->
+<div class="block" id="block9">
+  <h2>🔭 Replay Observatory <span class="badge">SSOT Verify</span></h2>
+  <div style="text-align:center;padding:8px" id="replayStatus">
+    <span style="font-size:36px" id="replayIcon">⏳</span>
+    <div class="replay-big" id="replayLabel">—</div>
+    <div style="font-size:11px;color:var(--text-dim)" id="replayDetails">Нажмите «Проверить»</div>
+  </div>
+  <div class="row" style="justify-content:center">
+    <button onclick="observatoryCheck()" class="primary sm">Проверить целостность</button>
+    <button onclick="replayExecute()" class="sm">Run Replay</button>
+  </div>
+  <pre class="log" id="observatoryLog" style="max-height:100px">Ожидание проверки...</pre>
+</div>
+
+<!-- BLOCK 10: SSOT Inspector -->
+<div class="block" id="block10">
+  <h2>📜 SSOT Inspector <span class="badge">acts_log</span></h2>
+  <div class="row">
+    <button onclick="ssotRefresh()" class="sm">Обновить</button>
+    <span style="font-size:10px;color:var(--text-dim)">Append-only · Read-only</span>
+  </div>
+  <div style="overflow-x:auto">
+    <table class="acts-table" id="actsTable">
+      <thead><tr><th>act_id</th><th>type</th><th>actor</th><th>target</th><th>created</th></tr></thead>
+      <tbody id="actsBody"><tr><td colspan="5" style="text-align:center;color:var(--text-dim)">Загрузка...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<!-- BLOCK 11: Canon Health (full width) -->
+<div class="block" style="margin-top:12px;margin-bottom:12px">
+  <h2>🏥 Canon Health <span class="badge">System Status</span></h2>
+  <div class="health-grid" id="healthGrid">
+    <div class="health-item"><span class="status-dot" id="hSSOT"></span><span class="label">SSOT</span><span class="val" id="hSSOTVal">—</span></div>
+    <div class="health-item"><span class="status-dot" id="hReplay"></span><span class="label">Replay</span><span class="val" id="hReplayVal">—</span></div>
+    <div class="health-item"><span class="status-dot" id="hMetronome"></span><span class="label">Metronome</span><span class="val" id="hMetronomeVal">—</span></div>
+    <div class="health-item"><span class="status-dot" id="hCanon"></span><span class="label">Canon Layer</span><span class="val" id="hCanonVal">—</span></div>
+    <div class="health-item"><span class="status-dot" id="hDB"></span><span class="label">Database</span><span class="val" id="hDBVal">—</span></div>
+    <div class="health-item"><span class="status-dot" id="hOverall"></span><span class="label">Overall</span><span class="val" id="hOverallVal">—</span></div>
+  </div>
+  <pre class="log" id="healthLog" style="max-height:60px;margin-top:6px"></pre>
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+const S = {
+  dayShift: 0,
+  canonLimits: null,
+  selectedTriads: [],
+  healthInterval: null,
+};
+
+const $ = id => document.getElementById(id);
+const api = async (path, opts = {}) => {
+  const base = $('apiUrl').value.replace(/\/+$/, '');
+  try {
+    const res = await fetch(base + path, {
+      ...opts,
+      headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    const data = await res.json();
+    return { ok: res.ok, status: res.status, data };
+  } catch (e) {
+    return { ok: false, status: 0, data: { error: e.message } };
+  }
+};
+
+// ============================================================
+// КАНОНИЧЕСКИЙ АЛФАВИТ (ЧисСлоБукВ v1.1)
+// ============================================================
+const CANON_CHARS = [
+  'А','Б','В','Г','Д','Е','Ё','Ж','З','И','Й','К','Л','М','Н','О','П','Р','С','Т','У','Ф','Х','Ц','Ч','Ш','Щ','Ъ','Ы','Ь','Э','Ю','Я',
+  'A','B','C','D','E','F','G','H','J','K','L','N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
+  '0','1','2','3','4','5','6','7','8','9','𝕯',' '
+];
+const RUSSIAN_ONLY = 'БГДЁЖЗИЙЛПУФЦЧШЩЪЫЬЭЮЯ';
+const LATIN_ONLY = 'CDFGHJLNQRSUVWZ';
+
+// ============================================================
+// VIRTUAL KEYBOARD
+// ============================================================
+function buildKeyboard() {
+  const kb = $('virtualKeyboard');
+  kb.innerHTML = '';
+  const rows = [
+    ['Б','Г','Д','Ё','Ж','З','И','Й','Л','П','У','Ф','Ц','Ч','Ш','Щ','Ъ','Ы','Ь','Э','Ю','Я'],
+    ['C','D','F','G','H','J','L','N','Q','R','S','U','V','W','Z'],
+    ['А','В','Е','К','М','Н','О','Р','С','Т','Х','A','B','E','K','M','H','O','P','C','T','X'],
+    ['0','1','2','3','4','5','6','7','8','9'],
+    ['𝕯', ' ', '⌫', '⎔'],
+  ];
+  rows.forEach(r => {
+    const div = document.createElement('div');
+    div.style.display = 'flex';
+    div.style.gap = '2px';
+    div.style.marginBottom = '2px';
+    r.forEach(ch => {
+      const btn = document.createElement('button');
+      btn.textContent = ch;
+      btn.type = 'button';
+      btn.style.width = ch === '𝕯' || ch === ' ' ? '60px' : ch === '⌫' || ch === '⎔' ? '40px' : '28px';
+      btn.onclick = () => {
+        const inp = $('okKey');
+        if (ch === '⌫') inp.value = inp.value.slice(0, -1);
+        else if (ch === '⎔') inp.value = '';
+        else inp.value += ch;
+      };
+      div.appendChild(btn);
+    });
+    kb.appendChild(div);
+  });
+}
+
+// ============================================================
+// TIME WHEEL
+// ============================================================
+function getSimulatedTime() {
+  const now = new Date();
+  now.setDate(now.getDate() + S.dayShift);
+  return now;
+}
+
+function getPhase(hours, minutes) {
+  const totalMin = hours * 60 + minutes;
+  if (totalMin >= 4*60 && totalMin < 19*60+55) return 'active';
+  if (totalMin >= 19*60+55 && totalMin < 20*60) return 'silence';
+  return 'impulse';
+}
+
+function updateTimeDisplay() {
+  const dt = getSimulatedTime();
+  const h = dt.getUTCHours().toString().padStart(2,'0');
+  const m = dt.getUTCMinutes().toString().padStart(2,'0');
+  const d = dt.toISOString().slice(0,10);
+  const phase = getPhase(dt.getUTCHours(), dt.getUTCMinutes());
+  const offset = S.dayShift === 0 ? '(системное)' : (S.dayShift > 0 ? `+${S.dayShift}д` : `${S.dayShift}д`);
+  $('wheelDate').textContent = `${d} ${h}:${m} UTC ${offset}`;
+  $('wheelPhase').textContent = `Фаза: ${phase.toUpperCase()}`;
+  const phases = { active: 'ACTIVE 04:00–19:55', silence: '⏸ SILENCE 19:55–20:00', impulse: 'IMPULSE 20:00–03:59' };
+  $('wheelPhase').textContent = phases[phase] || phase.toUpperCase();
+  $('wheelPhase').style.color = phase === 'silence' ? 'var(--red)' : phase === 'active' ? 'var(--green)' : 'var(--accent2)';
+  checkSilence();
+  updateBurnForecast();
+}
+
+function timeTravel(days) {
+  S.dayShift = days;
+  updateTimeDisplay();
+}
+
+function checkSilence() {
+  const dt = getSimulatedTime();
+  const phase = getPhase(dt.getUTCHours(), dt.getUTCMinutes());
+  const isSilence = phase === 'silence';
+  $('silenceOverlay').className = 'silence-overlay' + (isSilence ? ' show' : '');
+  if (isSilence) {
+    const warning = '⛔ ЗОНА ТИШИНЫ (19:55–20:00 UTC). Согласно Канону, в этот период никакие акты не могут быть совершены. Это время наблюдения и осознания.';
+    $('emitSilenceWarn').style.display = 'inline';
+    $('emitSilenceWarn').textContent = warning;
+    $('emitBtn').disabled = true;
+    $('xferSilenceWarn').style.display = 'inline';
+    $('xferSilenceWarn').textContent = '⛔ Передача доступна только в ACTIVE фазе (04:00–19:55).';
+  } else {
+    $('silenceOverlay').className = 'silence-overlay';
+    $('emitSilenceWarn').style.display = 'none';
+    $('emitBtn').disabled = false;
+    $('xferSilenceWarn').style.display = 'none';
+    const phaseNow = getPhase(dt.getUTCHours(), dt.getUTCMinutes());
+    if (phaseNow !== 'active') {
+      $('xferSilenceWarn').style.display = 'inline';
+      $('xferSilenceWarn').textContent = '⛔ Передача доступна только в ACTIVE фазе (04:00–19:55). Текущая: ' + phaseNow.toUpperCase();
+    }
+  }
+}
+
+async function updateBurnForecast() {
+  const cl = S.canonLimits;
+  if (!cl) { $('burnForecast').textContent = 'Ожидание загрузки Канона...'; return; }
+  const nextBurnHours = cl.burn_window_hours || 28;
+  const now = getSimulatedTime();
+  let lines = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + i);
+    const burnAt = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1, 0, 0, 0));
+    lines.push(`${burnAt.toISOString().slice(0,10)} — сгорание У.Е., выпущенных в ${d.toISOString().slice(0,10)} (правило ${nextBurnHours}+ч)`);
+  }
+  $('burnForecast').textContent = lines.join('\n');
+}
+
+// ============================================================
+// CANON LIMITS (SSOT — всегда из API)
+// ============================================================
+async function loadCanonLimits() {
+  const r = await api('/api/canon/limits');
+  if (r.ok) {
+    S.canonLimits = r.data;
+    renderTriads();
+    renderVersions();
+    updateTimeDisplay();
+    const cl = r.data;
+    $('emitVersion').textContent = `${cl.version} (stage ${cl.stage})`;
+    $('emitMin').textContent = cl.daily_min;
+    $('emitMax').textContent = cl.daily_max;
+  }
+}
+
+// ============================================================
+// BLOCK 3: TRIAD SELECTOR
+// ============================================================
+function renderTriads() {
+  const cl = S.canonLimits;
+  if (!cl) return;
+  const container = $('triadSelector');
+  container.innerHTML = '';
+  const selected = new Set(S.selectedTriads);
+  const baseSelected = ['T1','T2','T3','T4'].some(t => selected.has(t));
+  const allTriads = cl.base_triads.concat(cl.ext_triads);
+  allTriads.forEach(t => {
+    const td = cl.triads[t];
+    if (!td) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'triad-btn';
+    btn.dataset.triad = t;
+    const isExt = cl.ext_triads.includes(t);
+    if (isExt) btn.classList.add('ext');
+    else btn.classList.add('base');
+    const locked = (t === 'T5' && !baseSelected) || (isExt && !baseSelected);
+    if (locked) btn.classList.add('locked');
+    if (selected.has(t)) btn.classList.add('selected');
+    const rangeStr = td.range.join(',');
+    btn.textContent = `${t} (${td.name}): №${rangeStr} · ${td.ueCount} у.е.`;
+    if (td.minCanonVersion) btn.textContent += ` · треб. ${td.minCanonVersion}`;
+    btn.title = locked ? (t === 'T5' ? 'Доступна только после активации T1–T4' : 'Требуется версия Канона ' + (td.minCanonVersion || '—')) : '';
+    btn.onclick = () => {
+      if (btn.classList.contains('locked')) {
+        log('emitLog', `⛔ ${btn.title || 'Недоступно'}`, 'warn');
+        return;
+      }
+      if (selected.has(t)) { selected.delete(t); btn.classList.remove('selected'); }
+      else { selected.add(t); btn.classList.add('selected'); }
+      S.selectedTriads = [...selected];
+      updateEmitTotal();
+    };
+    container.appendChild(btn);
+  });
+}
+
+function updateEmitTotal() {
+  const cl = S.canonLimits;
+  if (!cl) return;
+  let total = 0;
+  S.selectedTriads.forEach(t => {
+    if (cl.triads[t]) total += cl.triads[t].ueCount;
+  });
+  $('emitTotal').textContent = total;
+  const min = cl.daily_min;
+  const max = cl.daily_max;
+  const valid = total >= min && total <= max;
+  $('emitTotal').style.color = valid ? 'var(--green)' : 'var(--red)';
+  $('emitPreview').style.display = total > 0 ? 'block' : 'none';
+  const burnHours = cl.burn_window_hours || 28;
+  $('previewBurn').textContent = burnHours;
+}
+
+// ============================================================
+// BLOCK 8: VERSIONS
+// ============================================================
+function renderVersions() {
+  const cl = S.canonLimits;
+  if (!cl) return;
+  const container = $('versionList');
+  container.innerHTML = '';
+  const active = { label: `v${cl.version} (Строитель)`, desc: `Лимит ${cl.daily_min}–${cl.daily_max} R.U. Триады: ${cl.base_triads.join(', ')}`, active: true };
+  const item = document.createElement('div');
+  item.className = 'roadmap-item active';
+  item.innerHTML = `<span class="status-dot status-ok"></span><strong style="flex:1">${active.label}</strong><span style="font-size:11px;color:var(--text-dim)">${active.desc}</span>`;
+  container.appendChild(item);
+  if (cl.roadmaps) {
+    Object.values(cl.roadmaps).forEach(r => {
+      const div = document.createElement('div');
+      div.className = 'roadmap-item inactive';
+      div.innerHTML = `<span class="status-dot" style="background:var(--text-dim)"></span><strong style="flex:1">${r.label}</strong><span style="font-size:11px;color:var(--text-dim)">${r.description} · <em>Правила недоступны в текущем Canon Layer</em></span>`;
+      container.appendChild(div);
+    });
+  }
+}
+
+// ============================================================
+// LOGGING
+// ============================================================
+function log(elId, msg, type = 'info') {
+  const el = $(elId);
+  if (!el) return;
+  const line = document.createElement('div');
+  line.className = type;
+  const ts = new Date().toISOString().slice(11, 19);
+  line.textContent = `[${ts}] ${msg}`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+// ============================================================
+// BLOCK 2: OK MANAGEMENT
+// ============================================================
+async function okCreate() {
+  const key = $('okKey').value.trim();
+  if (!key.startsWith('::') || !key.endsWith('::')) {
+    log('okLog', '⛔ О.К. должен быть в формате ::имя::', 'err');
+    return;
+  }
+  const r = await api('/api/threshold', { method: 'POST', body: { ok_key: key } });
+  if (r.ok) log('okLog', `✓ ${key} создан`, 'ok');
+  else if (r.status === 409) log('okLog', `ℹ ${key} уже существует`, 'info');
+  else log('okLog', `✗ ${r.data?.error || r.status}`, 'err');
+}
+
+async function okPresence() {
+  const key = encodeURIComponent($('okKey').value.trim()) || encodeURIComponent('::ТЕСТ1::');
+  const r = await api(`/api/presence/${key.replace(/^%3A%3A/, '%3A%3A')}`);
+  if (r.ok) {
+    const flow = r.data?.projection?.ue_flow ?? '?';
+    log('okLog', `✓ ${$('okKey').value.trim() || '::ТЕСТ1::'} → Поток У.Е.: ${flow}`, 'ok');
+  } else {
+    log('okLog', `✗ ${r.data?.error || r.status}`, 'err');
+  }
+}
+
+// ============================================================
+// BLOCK 3: EMISSION
+// ============================================================
+async function emitExecute() {
+  const actor = $('emitOk').value.trim();
+  if (S.selectedTriads.length === 0) { log('emitLog', '⛔ Выберите хотя бы одну триаду', 'warn'); return; }
+  const cl = S.canonLimits;
+  if (!cl) { log('emitLog', '⛔ Канон не загружен', 'err'); return; }
+  const dt = getSimulatedTime();
+  const phase = getPhase(dt.getUTCHours(), dt.getUTCMinutes());
+  if (phase === 'silence') { log('emitLog', '⛔ Нарушение тишины канона. Акт невозможен в фазе Silence (19:55–20:00 UTC).', 'err'); return; }
+  const totalUe = S.selectedTriads.reduce((sum, t) => sum + (cl.triads[t]?.ueCount || 0), 0);
+  if (totalUe < cl.daily_min) {
+    if (S.selectedTriads.length === 1 && S.selectedTriads[0] === 'T5') {
+      log('emitLog', '⛔ Минимум 3 у.е. для активации триады T5. Выберите T1–T4 для достижения порога.', 'warn');
+    } else {
+      log('emitLog', `⛔ Минимум ${cl.daily_min} У.Е. для эмиссии. Выбрано: ${totalUe}`, 'warn');
+    }
+    return;
+  }
+  if (totalUe > cl.daily_max) { log('emitLog', `⛔ Превышен лимит ${cl.daily_max} У.Е. Выбрано: ${totalUe}`, 'warn'); return; }
+  log('emitLog', `⚡ Эмиссия: ${actor} → ${S.selectedTriads.join(', ')} (${totalUe} У.Е.)`, 'info');
+  const r = await api('/api/acts', {
+    method: 'POST',
+    body: { act_type: 'EMISSION', actor_ok: actor, payload: { triads: S.selectedTriads } },
+  });
+  if (r.ok) {
+    log('emitLog', `✓ ${r.data.ue_units?.length || totalUe} У.Е. создано (фаза: ${r.data.phase})`, 'ok');
+  } else log('emitLog', `✗ ${r.data?.error || r.status}`, 'err');
+}
+
+// ============================================================
+// BLOCK 4: TRANSFER
+// ============================================================
+async function xferExecute() {
+  const from = $('xferFrom').value.trim();
+  const to = $('xferTo').value.trim();
+  const uuid = $('xferUuid').value.trim();
+  if (!uuid) { log('xferLog', '⛔ Укажите UE UUID для передачи', 'warn'); return; }
+  const dt = getSimulatedTime();
+  const phase = getPhase(dt.getUTCHours(), dt.getUTCMinutes());
+  if (phase !== 'active') { log('xferLog', '⛔ Передача доступна только в фазе ACTIVE (04:00–19:55 UTC)', 'warn'); return; }
+  const r = await api('/api/acts', {
+    method: 'POST',
+    body: { act_type: 'TRANSFER', actor_ok: from, target_ok: to, payload: { ue_uuid: uuid } },
+  });
+  if (r.ok) log('xferLog', `✓ ${uuid.slice(0,8)} → ${to}`, 'ok');
+  else log('xferLog', `✗ ${r.data?.error || r.status}`, 'err');
+}
+
+// ============================================================
+// BLOCK 5: BURN
+// ============================================================
+async function burnExecute() {
+  const r = await api('/api/burn', { method: 'POST' });
+  if (r.ok) log('burnLog', `✓ Сожжено: ${r.data.burned_count || 0} У.Е.`, r.data.burned_count > 0 ? 'ok' : 'info');
+  else log('burnLog', `✗ ${r.data?.error || r.status}`, 'err');
+}
+
+// ============================================================
+// BLOCK 6: PRESENCE
+// ============================================================
+async function presenceCheck() {
+  const key = encodeURIComponent($('presenceOk').value.trim()) || encodeURIComponent('::ТЕСТ1::');
+  const r = await api(`/api/presence/${key}`);
+  if (r.ok) {
+    const p = r.data.projection || {};
+    log('presenceLog', `✓ ${r.data.ok_id}: Поток У.Е. = ${p.ue_flow}, окно: ${p.window_start || '—'}`, 'ok');
+  } else log('presenceLog', `✗ ${r.data?.error || r.status}`, 'err');
+}
+
+// ============================================================
+// BLOCK 7: REPLAY
+// ============================================================
+async function replayExecute() {
+  log('replayLog', '🔄 Запуск реплей верификации...', 'info');
+  const r = await api('/api/replay/run');
+  if (r.ok) {
+    const s = r.data.status === 'MATCH' ? 'ok' : 'err';
+    log('replayLog', `${r.data.status === 'MATCH' ? '✓' : '✗'} Статус: ${r.data.status} (snapshot: ${r.data.snapshot_count}, восстановлено: ${r.data.reconstructed_count}, расхождений: ${r.data.mismatch_count})`, s);
+  } else log('replayLog', `✗ ${r.data?.error || r.status}`, 'err');
+}
+
+// ============================================================
+// BLOCK 9: REPLAY OBSERVATORY
+// ============================================================
+async function observatoryCheck() {
+  $('replayIcon').textContent = '⏳';
+  $('replayLabel').textContent = 'Проверка...';
+  $('replayLabel').style.color = 'var(--text-dim)';
+  log('observatoryLog', '🔭 Запуск проверки целостности...', 'info');
+  const r = await api('/api/replay/run');
+  if (r.ok) {
+    const match = r.data.status === 'MATCH';
+    $('replayIcon').textContent = match ? '✅' : '❌';
+    $('replayLabel').textContent = match ? 'MATCH' : 'MISMATCH';
+    $('replayLabel').style.color = match ? 'var(--green)' : 'var(--red)';
+    $('replayDetails').textContent = `${r.data.snapshot_count} У.Е. в snapshort · ${r.data.reconstructed_count} восстановлено · ${r.data.mismatch_count} расхождений`;
+    log('observatoryLog', `${match ? '✓ MATCH' : '✗ MISMATCH'} — snapshot: ${r.data.snapshot_count}, reconstructed: ${r.data.reconstructed_count}, mismatch: ${r.data.mismatch_count}`, match ? 'ok' : 'err');
+  } else {
+    $('replayIcon').textContent = '⚠️';
+    $('replayLabel').textContent = 'ERROR';
+    $('replayLabel').style.color = 'var(--red)';
+    log('observatoryLog', `✗ Ошибка: ${r.data?.error || r.status}`, 'err');
+  }
+}
+
+// ============================================================
+// BLOCK 10: SSOT INSPECTOR
+// ============================================================
+async function ssotRefresh() {
+  $('actsBody').innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim)">Загрузка...</td></tr>';
+  const r = await api('/api/acts?limit=20');
+  if (r.ok && r.data.acts) {
+    $('actsBody').innerHTML = r.data.acts.map(a =>
+      `<tr><td title="${a.act_id}">${a.act_id.slice(0,8)}</td><td>${a.act_type}</td><td title="${a.actor_ok}">${a.actor_ok}</td><td title="${a.target_ok || '—'}">${a.target_ok || '—'}</td><td>${a.created_at ? a.created_at.slice(0,19) : '—'}</td></tr>`
+    ).join('');
+  } else {
+    $('actsBody').innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--red)">Ошибка загрузки: ${r.data?.error || r.status}</td></tr>`;
+  }
+}
+
+// ============================================================
+// BLOCK 11: CANON HEALTH
+// ============================================================
+async function healthFullCheck() {
+  const r = await api('/api/system/health');
+  if (r.ok) {
+    const h = r.data.checks;
+    const set = (id, valId, status, label) => {
+      $(id).className = 'status-dot status-' + (status === 'OK' ? 'ok' : 'fail');
+      $(valId).textContent = label;
+    };
+    if (h.ssot) set('hSSOT', 'hSSOTVal', h.ssot.status, `${h.ssot.version} (stage ${h.ssot.stage})`);
+    if (h.replay) set('hReplay', 'hReplayVal', h.replay.status, `${h.replay.acts} acts, ${h.replay.ue_units} ue`);
+    if (h.metronome) set('hMetronome', 'hMetronomeVal', h.metronome.status, h.metronome.phase);
+    if (h.canon_layer) set('hCanon', 'hCanonVal', h.canon_layer.status, h.canon_layer.isValidOK ? 'valid' : 'active');
+    if (h.database) set('hDB', 'hDBVal', h.database.status, `${h.database.tables} tables`);
+    const overall = r.data.status;
+    $('hOverall').className = 'status-dot status-' + (overall === 'OK' ? 'ok' : (overall === 'DEGRADED' ? 'degraded' : 'fail'));
+    $('hOverallVal').textContent = overall;
+    $('healthDot').className = 'status-dot status-' + (overall === 'OK' ? 'ok' : (overall === 'DEGRADED' ? 'degraded' : 'fail'));
+    $('healthLabel').textContent = overall === 'OK' ? 'All systems OK' : 'Issues detected';
+    log('healthLog', `✓ Health: ${overall} (SSOT:${h.ssot?.status}, Replay:${h.replay?.status}, Met:${h.metronome?.status}, Can:${h.canon_layer?.status}, DB:${h.database?.status})`, overall === 'OK' ? 'ok' : 'warn');
+  } else {
+    $('healthDot').className = 'status-dot status-fail';
+    $('healthLabel').textContent = 'API unreachable';
+    log('healthLog', '✗ Health check failed', 'err');
+  }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+buildKeyboard();
+loadCanonLimits();
+healthFullCheck();
+ssotRefresh();
+observatoryCheck();
+setInterval(updateTimeDisplay, 5000);
+setInterval(healthFullCheck, 30000);
+S.healthInterval = setInterval(healthFullCheck, 30000);
+updateTimeDisplay();
+log('okLog', 'Менеджер О.К. готов. Используйте клавиатуру ЧисСлоБукВ.', 'info');
+log('emitLog', 'Эмиссия готова. Выберите триады в иерархическом порядке (T1–T4 → T5/K*).', 'info');
+log('healthLog', 'Canon Health: выполняется проверка...', 'info');
+</script>
+</body>
+</html>

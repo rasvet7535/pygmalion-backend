@@ -1,0 +1,21 @@
+{
+  "name": "pygmalion-backend",
+  "version": "0.4.02",
+  "description": "Pygmalion NOD Platform Backend — GENEZIS Canonical Cut",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "nodemon backend/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.18.2",
+    "node-cron": "^4.2.1",
+    "pg": "^8.20.0",
+    "pino": "^10.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

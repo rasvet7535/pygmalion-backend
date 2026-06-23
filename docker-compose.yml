@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: pygmalion-db-genezis
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pygmalion_genezis
+      POSTGRES_USER: pygmalion
+      POSTGRES_PASSWORD: pygmalion_secret_2026
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata_genezis:/var/lib/postgresql/data
+      - ./sql-schema:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pygmalion -d pygmalion_genezis"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pygmalion-backend-genezis
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://pygmalion:pygmalion_secret_2026@postgres:5432/pygmalion_genezis
+    ports:
+      - "3002:3000"
+    volumes:
+      - ./backend:/app/backend
+      - ./tools:/app/tools
+    command: node backend/server.js
+
+volumes:
+  pgdata_genezis:

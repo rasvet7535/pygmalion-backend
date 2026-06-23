@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PYG TEST CONSOLE v0.4.01</title>
+<style>
+:root {
+  --bg: #0a0e14;
+  --surface: #121820;
+  --border: #1e2a36;
+  --text: #c8d6e5;
+  --text-dim: #6080a0;
+  --accent: #00bcd4;
+  --accent2: #7c4dff;
+  --green: #00e676;
+  --red: #ff5252;
+  --yellow: #ffd740;
+  --orange: #ff9100;
+  --font: 'Consolas', 'Courier New', monospace;
+  --radius: 4px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 16px;
+}
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.header h1 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+.header .sub {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.header .api-bar {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+input, select, button, textarea {
+  font-family: var(--font);
+  font-size: 12px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+}
+input:focus, select:focus { outline: none; border-color: var(--accent); }
+button {
+  cursor: pointer;
+  background: var(--border);
+  transition: all .15s;
+  padding: 4px 12px;
+}
+button:hover { background: #2a3a4a; }
+button:active { transform: scale(0.97); }
+button.primary { background: var(--accent); color: #000; font-weight: 600; }
+button.primary:hover { background: #26e0f0; }
+button.danger { background: var(--red); color: #fff; }
+button.danger:hover { background: #ff6b6b; }
+button.green { background: var(--green); color: #000; }
+button.green:hover { background: #30ff8a; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+.block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.block h2 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent2);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.block h2 .num {
+  color: var(--text-dim);
+  font-weight: 400;
+}
+.block .row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.block .row label {
+  color: var(--text-dim);
+  min-width: 50px;
+  font-size: 11px;
+}
+.block .row input, .block .row select {
+  flex: 1;
+  min-width: 80px;
+}
+.block .row .val {
+  color: var(--yellow);
+  font-size: 12px;
+}
+.preview-box {
+  background: #0d1520;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  margin: 4px 0;
+  font-size: 11px;
+  color: var(--text-dim);
+  max-height: 80px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+.preview-box.success { border-color: var(--green); color: var(--green); }
+.preview-box.error { border-color: var(--red); color: var(--red); }
+.preview-box.info { border-color: var(--accent); color: var(--accent); }
+.result-box {
+  background: #0d1520;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  margin: 4px 0;
+  font-size: 11px;
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.status-dot.green { background: var(--green); }
+.status-dot.red { background: var(--red); }
+.status-dot.yellow { background: var(--yellow); }
+
+/* TEST CYCLE */
+.test-cycle {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 16px;
+}
+.test-cycle h2 {
+  font-size: 13px;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.test-cycle .steps {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.test-cycle .steps button {
+  font-size: 11px;
+  padding: 3px 10px;
+}
+.test-cycle .steps button.done { background: var(--green); color: #000; }
+.test-cycle .steps button.active { background: var(--accent); color: #000; animation: pulse 1s infinite; }
+.test-cycle .steps button.fail { background: var(--red); color: #fff; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .6; } }
+.test-cycle .log {
+  background: #0d1520;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  font-size: 11px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.test-cycle .log .entry { padding: 2px 0; border-bottom: 1px solid #0a0e14; }
+.test-cycle .log .ok { color: var(--green); }
+.test-cycle .log .err { color: var(--red); }
+.test-cycle .log .info { color: var(--accent); }
+.tab { margin: 4px 0; padding-left: 8px; border-left: 2px solid var(--border); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>ПИГ ТЕСТ КОНСОЛЬ</h1>
+  <span class="sub">v0.4.01</span>
+  <div class="api-bar">
+    <input id="apiUrl" value="http://localhost:3001" style="width:180px">
+    <button onclick="healthCheck()" class="green">Статус</button>
+    <span id="healthDot" class="status-dot yellow"></span>
+    <span id="healthStatus" style="font-size:11px;color:var(--text-dim)">—</span>
+  </div>
+</div>
+
+<div class="grid">
+
+<!-- 1. Машина Времени -->
+<div class="block">
+  <h2><span class="num">1</span> Машина Времени</h2>
+  <div class="row">
+    <label>Фаза:</label>
+    <span id="currentPhase" class="val">—</span>
+  </div>
+  <div class="row">
+    <label>Время UTC:</label>
+    <span id="currentUtc" class="val">—</span>
+  </div>
+  <div class="row">
+    <label>Сдвиг:</label>
+    <button onclick="timeShift(1)">+1ч</button>
+    <button onclick="timeShift(6)">+6ч</button>
+    <button onclick="timeShift(24)">+24ч</button>
+    <button onclick="timeShift(0)" style="color:var(--orange)">Сброс</button>
+  </div>
+  <div class="row">
+    <label>Инфо:</label>
+    <span id="phaseInfo" style="font-size:11px;color:var(--text-dim)">—</span>
+  </div>
+</div>
+
+<!-- 2. Менеджер О.К. -->
+<div class="block">
+  <h2><span class="num">2</span> Менеджер О.К.</h2>
+  <div class="row">
+    <label>Ключ:</label>
+    <input id="okKey" value="::test:1::" style="flex:1">
+  </div>
+  <div class="row">
+    <button onclick="okPreview('create')" class="primary">Превью</button>
+    <button onclick="okExecute('create')">Создать О.К.</button>
+    <button onclick="okExecute('threshold')">Порог</button>
+    <button onclick="okList()">Список</button>
+  </div>
+  <div id="okPreview" class="preview-box"></div>
+  <div id="okListResult" class="result-box" style="display:none"></div>
+</div>
+
+<!-- 3. Эмиссия -->
+<div class="block">
+  <h2><span class="num">3</span> Эмиссия</h2>
+  <div class="row">
+    <label>О.К.:</label>
+    <input id="emitOk" value="::test:1::" style="flex:1">
+  </div>
+  <div class="row">
+    <label>Триада:</label>
+    <select id="emitTriad" style="flex:1">
+      <option value="T1">T1 — Знания (№1-3)</option>
+      <option value="T2">T2 — Практики (№4-6)</option>
+      <option value="T3">T3 — Творчество (№7-9)</option>
+      <option value="T4">T4 — Досуг/ЗОЖ (№10-12)</option>
+      <option value="T5">T5 — (№21, 1 У.Е.)</option>
+    </select>
+  </div>
+  <div class="row">
+    <label>Кол-во:</label>
+    <input id="emitAmount" type="number" min="1" max="3" value="1" style="width:60px">
+    <span style="font-size:11px;color:var(--text-dim)">(1-3 на триаду)</span>
+  </div>
+  <div class="row">
+    <button onclick="emitPreview()" class="primary">Превью</button>
+    <button onclick="emitExecute()">Исполнить</button>
+  </div>
+  <div id="emitPreview" class="preview-box"></div>
+  <div id="emitResult" class="result-box"></div>
+</div>
+
+<!-- 4. Передача -->
+<div class="block">
+  <h2><span class="num">4</span> Передача</h2>
+  <div class="row">
+    <label>От:</label>
+    <input id="xferFrom" value="::test:1::" style="flex:1">
+  </div>
+  <div class="row">
+    <label>Кому:</label>
+    <input id="xferTo" value="::test:2::" style="flex:1">
+  </div>
+  <div class="row">
+    <label>UUID У.Е.:</label>
+    <input id="xferUuid" placeholder="uuid-или-авто" style="flex:1">
+  </div>
+  <div class="row">
+    <span id="xferPhase" style="font-size:11px;color:var(--text-dim)">Проверка фазы...</span>
+  </div>
+  <div class="row">
+    <button onclick="xferPreview()" class="primary">Превью</button>
+    <button onclick="xferExecute()">Исполнить</button>
+  </div>
+  <div id="xferPreview" class="preview-box"></div>
+  <div id="xferResult" class="result-box"></div>
+</div>
+
+<!-- 5. Сжигание -->
+<div class="block">
+  <h2><span class="num">5</span> Сжигание</h2>
+  <div class="row">
+    <label>Активн. У.Е.:</label>
+    <span id="burnStatus" class="val">—</span>
+  </div>
+  <div class="row">
+    <button onclick="burnPreview()" class="primary">Превью</button>
+    <button onclick="burnExecute()" class="danger">Сжечь</button>
+  </div>
+  <div id="burnPreview" class="preview-box"></div>
+  <div id="burnResult" class="result-box"></div>
+</div>
+
+<!-- 6. Реплей -->
+<div class="block">
+  <h2><span class="num">6</span> Реплей</h2>
+  <div class="row">
+    <label>Период:</label>
+    <select id="replayPeriod" style="flex:1">
+      <option value="today">Сегодня</option>
+      <option value="24h">Последние 24ч</option>
+      <option value="7d">Последние 7 дн.</option>
+      <option value="all">Всё время</option>
+    </select>
+  </div>
+  <div class="row">
+    <button onclick="replayExecute()" class="green">Запустить</button>
+  </div>
+  <div id="replayResult" class="result-box"></div>
+</div>
+
+<!-- 7. Присутствие -->
+<div class="block">
+  <h2><span class="num">7</span> Присутствие</h2>
+  <div class="row">
+    <label>О.К.:</label>
+    <input id="presenceOk" value="::test:1::" style="flex:1">
+  </div>
+  <div class="row">
+    <button onclick="presenceShow()" class="primary">Показать</button>
+    <button onclick="mirrorShow()">Зеркало</button>
+    <button onclick="observerShow()">Наблюдатель</button>
+  </div>
+  <div id="presenceResult" class="result-box"></div>
+</div>
+
+<!-- 8. Версия -->
+<div class="block">
+  <h2><span class="num">8</span> Версия</h2>
+  <div class="row">
+    <label>Версия:</label>
+    <select id="versionSelect" style="flex:1">
+      <option value="v0.4.1.TEST">v0.4.1.TEST (тек.)</option>
+      <option value="v1.0.01">v1.0.01</option>
+      <option value="v3.0.01">v3.0.01</option>
+      <option value="v4.0.01">v4.0.01</option>
+    </select>
+  </div>
+  <div class="row">
+    <button onclick="versionPreview()" class="primary">Превью</button>
+    <button onclick="versionApply()">Применить</button>
+  </div>
+  <div id="versionPreview" class="preview-box"></div>
+  <div id="versionResult" class="result-box"></div>
+</div>
+
+</div>
+
+<!-- ТЕСТ-ЦИКЛ-01 -->
+<div class="test-cycle">
+  <h2>ТЕСТ-ЦИКЛ-01</h2>
+  <div class="steps">
+    <button id="tc1" onclick="tcStep(1)">1 О.К.</button>
+    <button id="tc2" onclick="tcStep(2)">2 Присутствие</button>
+    <button id="tc3" onclick="tcStep(3)">3 Эмиссия</button>
+    <button id="tc4" onclick="tcStep(4)">4 Передача</button>
+    <button id="tc5" onclick="tcStep(5)">5 Тишина</button>
+    <button id="tc6" onclick="tcStep(6)">6 Сжигание</button>
+    <button id="tc7" onclick="tcStep(7)">7 Реплей</button>
+    <button id="tc8" onclick="tcStep(8)">8 Присутствие</button>
+    <button onclick="tcReset()" style="color:var(--orange)">Сброс</button>
+  </div>
+  <div id="tcLog" class="log"></div>
+</div>
+
+<script>
+// ─── STATE ─────────────────────────────────────────────
+const STATE = {
+  apiUrl: 'http://localhost:3001',
+  timeShift: 0,
+  currentPhase: 'unknown',
+  okList: [],
+  ueList: [],
+  version: 'v0.4.1.TEST',
+  tcStep: 0,
+};
+
+// ─── HELPERS ───────────────────────────────────────────
+function $(id) { return document.getElementById(id); }
+
+function api(endpoint, opts = {}) {
+  const url = $('apiUrl').value.replace(/\/+$/, '') + endpoint;
+  const { method = 'GET', body } = opts;
+  const headers = { 'Content-Type': 'application/json' };
+  if (method === 'GET') delete headers['Content-Type'];
+  return fetch(url, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  }).then(r => r.json().then(d => ({ status: r.status, ok: r.ok, data: d }))
+      .catch(() => ({ status: r.status, ok: r.ok, data: { raw: r.statusText } })));
+}
+
+function log(area, msg, type = 'info') {
+  const el = $(area);
+  if (!el) return;
+  const d = document.createElement('div');
+  d.className = `entry ${type}`;
+  d.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+
+function showPreview(id, msg, type = '') {
+  const el = $(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'preview-box ' + type;
+  el.style.display = 'block';
+}
+
+function showResult(id, data) {
+  const el = $(id);
+  if (!el) return;
+  el.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+  el.style.display = 'block';
+}
+
+function getSimulatedTime() {
+  const now = new Date();
+  const shifted = new Date(now.getTime() + STATE.timeShift * 3600000);
+  const h = shifted.getUTCHours();
+  const m = shifted.getUTCMinutes();
+  let phase, info;
+  if (h === 19 && m >= 55) { phase = 'silence'; info = 'Тишина — никакие акты не разрешены (19:55-20:00)'; }
+  else if (h >= 20 || h < 4) { phase = 'impulse'; info = 'Импульс — эмиссия разрешена, передача заблокирована'; }
+  else { phase = 'active'; info = 'Актив — все операции разрешены'; }
+  return { now: shifted, phase, info, h, m };
+}
+
+function updateTimeDisplay() {
+  const t = getSimulatedTime();
+  $('currentPhase').textContent = t.phase;
+  $('currentUtc').textContent = t.now.toISOString().slice(0, 19).replace('T', ' ');
+  $('phaseInfo').textContent = t.info;
+  STATE.currentPhase = t.phase;
+}
+
+// ─── HEALTH ────────────────────────────────────────────
+async function healthCheck() {
+  const dot = $('healthDot');
+  const st = $('healthStatus');
+  dot.className = 'status-dot yellow';
+  st.textContent = 'проверка...';
+  try {
+    const r = await api('/health');
+    if (r.ok && r.data.status === 'ok') {
+      dot.className = 'status-dot green';
+      st.textContent = `OK | DB: ${r.data.db} | ${r.data.timestamp ? r.data.timestamp.slice(11,19) : ''}`;
+      return true;
+    } else {
+      dot.className = 'status-dot red';
+      st.textContent = `ОШИБКА: ${r.data.error || r.status}`;
+      return false;
+    }
+  } catch (e) {
+    dot.className = 'status-dot red';
+    st.textContent = `Ошибка: ${e.message}`;
+    return false;
+  }
+}
+
+// ─── 1. TIME MACHINE ───────────────────────────────────
+function timeShift(hours) {
+  STATE.timeShift = hours;
+  updateTimeDisplay();
+}
+
+// ─── 2. O.K. MANAGER ───────────────────────────────────
+async function okPreview(action) {
+  const key = $('okKey').value.trim();
+  if (action === 'create') {
+    showPreview('okPreview', `Превью: Регистрация О.К. "${key}" через POST /api/ok\nБез побочных эффектов — только upsert.`);
+  }
+}
+
+async function okExecute(action) {
+  const key = $('okKey').value.trim();
+  if (!key.match(/^::.+::$/)) { showPreview('okPreview', 'Ошибка: О.К. должен быть в формате ::имя::', 'error'); return; }
+  try {
+    if (action === 'create') {
+      const r = await api('/api/ok', { method: 'POST', body: { ok_key: key } });
+      if (r.ok) { showResult('okListResult', `✓ О.К. "${key}" зарегистрирован\n${JSON.stringify(r.data, null, 2)}`); }
+      else { showResult('okListResult', `✗ Ошибка ${r.status}: ${JSON.stringify(r.data)}`); }
+    } else if (action === 'threshold') {
+      const r = await api('/api/threshold', { method: 'POST', body: { ok_key: key } });
+      showResult('okListResult', JSON.stringify(r.data, null, 2));
+    }
+  } catch (e) {
+    showResult('okListResult', `Сетевая ошибка: ${e.message}`);
+  }
+}
+
+async function okList() {
+  try {
+    const r = await api('/api/observer');
+    const el = $('okListResult');
+    el.style.display = 'block';
+    if (r.ok) {
+      const data = r.data;
+      el.textContent = JSON.stringify(data, null, 2);
+    } else {
+      el.textContent = `Ошибка ${r.status}: ${JSON.stringify(r.data)}`;
+    }
+  } catch (e) {
+    showResult('okListResult', `Сетевая ошибка: ${e.message}`);
+  }
+}
+
+// ─── 3. EMISSION ───────────────────────────────────────
+const TRIAD_MAP = {
+  T1: { nums: [1,2,3], desc: 'Знания' },
+  T2: { nums: [4,5,6], desc: 'Практики' },
+  T3: { nums: [7,8,9], desc: 'Творчество' },
+  T4: { nums: [10,11,12], desc: 'Досуг/ЗОЖ' },
+  T5: { nums: [21], desc: 'Спец.' },
+};
+
+function emitPreview() {
+  const triad = $('emitTriad').value;
+  const amount = parseInt($('emitAmount').value) || 1;
+  const info = TRIAD_MAP[triad];
+  if (!info) { showPreview('emitPreview', 'Неизвестная триада', 'error'); return; }
+  const nums = info.nums.slice(0, amount);
+  const phase = getSimulatedTime();
+  const warnings = [];
+  if (phase.phase === 'silence') warnings.push('⚠ ТИШИНА: эмиссия заблокирована!');
+  if (phase.phase === 'impulse') warnings.push('ℹ ИМПУЛЬС: эмиссия разрешена, передача заблокирована');
+  const msg = [
+    `Триада: ${triad} (${info.desc})`,
+    `Номера У.Е.: ${nums.join(', ')}`,
+    `Количество: ${amount} R.U.`,
+    `Фаза: ${phase.phase}`,
+    ...warnings,
+    '', 'Будет отправлен POST /api/acts с act_type=EMISSION',
+  ].join('\n');
+  showPreview('emitPreview', msg, phase.phase === 'silence' ? 'error' : 'info');
+}
+
+async function emitExecute() {
+  const triad = $('emitTriad').value;
+  const amount = parseInt($('emitAmount').value) || 1;
+  const actor = $('emitOk').value.trim();
+  const phase = getSimulatedTime();
+  if (phase.phase === 'silence') {
+    showResult('emitResult', 'Заблокировано: Фаза тишины (19:55-20:00 UTC)');
+    return;
+  }
+  try {
+    const r = await api('/api/acts', {
+      method: 'POST',
+      body: {
+        act_type: 'EMISSION',
+        actor_ok: actor,
+        payload: { triads: [triad] },
+      },
+    });
+    showResult('emitResult', JSON.stringify(r.data, null, 2));
+    if (r.ok) log('tcLog', `Эмиссия ${triad} × ${amount} → OK`, 'ok');
+    else log('tcLog', `Эмиссия не удалась: ${r.data.error || r.status}`, 'err');
+  } catch (e) {
+    showResult('emitResult', `Ошибка: ${e.message}`);
+  }
+}
+
+// ─── 4. TRANSFER ───────────────────────────────────────
+function xferPreview() {
+  const from = $('xferFrom').value.trim();
+  const to = $('xferTo').value.trim();
+  const uuid = $('xferUuid').value.trim() || '(авто: последняя активная У.Е.)';
+  const phase = getSimulatedTime();
+  const warnings = [];
+  if (phase.phase !== 'active') warnings.push('⚠ Передача разрешена только в фазе ACTIVE (04:00-19:55)');
+  if (phase.phase === 'silence') warnings.push('⛔ ТИШИНА — все акты заблокированы');
+  const msg = [
+    `От: ${from}`,
+    `Кому: ${to}`,
+    `UUID У.Е.: ${uuid}`,
+    `Фаза: ${phase.phase}`,
+    ...warnings,
+    '', 'Будет отправлен POST /api/acts с act_type=TRANSFER',
+  ].join('\n');
+  showPreview('xferPreview', msg, phase.phase === 'active' ? 'info' : 'error');
+}
+
+async function xferExecute() {
+  const from = $('xferFrom').value.trim();
+  const to = $('xferTo').value.trim();
+  const uuid = $('xferUuid').value.trim();
+  const phase = getSimulatedTime();
+  if (phase.phase === 'silence') {
+    showResult('xferResult', 'Заблокировано: Фаза тишины');
+    return;
+  }
+  if (phase.phase !== 'active') {
+    showResult('xferResult', 'Заблокировано: Передача только в активной фазе (04:00-19:55 UTC)');
+    return;
+  }
+  try {
+    const r = await api('/api/acts', {
+      method: 'POST',
+      body: {
+        act_type: 'TRANSFER',
+        actor_ok: from,
+        target_ok: to,
+        payload: { ue_uuid: uuid || undefined },
+      },
+    });
+    showResult('xferResult', JSON.stringify(r.data, null, 2));
+    if (r.ok) log('tcLog', `Передача ${from} → ${to} OK`, 'ok');
+    else log('tcLog', `Передача не удалась: ${r.data.error || r.status}`, 'err');
+  } catch (e) {
+    showResult('xferResult', `Ошибка: ${e.message}`);
+  }
+}
+
+// ─── 5. BURN ───────────────────────────────────────────
+async function burnPreview() {
+  showPreview('burnPreview', 'Запрос активных У.Е...', 'info');
+  try {
+    const r = await api('/api/observer');
+    if (r.ok && r.data.ue_units) {
+      const u = r.data.ue_units;
+      const pending = (u.active || 0) + (u.impulse || 0);
+      const msg = [
+        `Активных У.Е.: ${u.active || 0}`,
+        `Импульсных У.Е.: ${u.impulse || 0}`,
+        `Всего к сжиганию: ${pending}`,
+        `Переданных: ${u.transferred || 0}`,
+        `Сожжённых: ${u.burned || 0}`,
+        '', 'POST /api/burn — сжечь все истёкшие У.Е.',
+      ].join('\n');
+      showPreview('burnPreview', msg, pending > 0 ? 'success' : 'info');
+    } else {
+      showPreview('burnPreview', `Ошибка Observer API: ${JSON.stringify(r.data)}`, 'error');
+    }
+  } catch (e) {
+    showPreview('burnPreview', `Ошибка: ${e.message}`, 'error');
+  }
+}
+
+async function burnExecute() {
+  try {
+    const r = await api('/api/burn', { method: 'POST', body: {} });
+    showResult('burnResult', JSON.stringify(r.data, null, 2));
+    if (r.ok) {
+      const cnt = r.data.burned_count || 0;
+      log('tcLog', `Сожжено: ${cnt} У.Е.`, cnt > 0 ? 'ok' : 'info');
+    } else log('tcLog', `Сжигание не удалось: ${r.data.error || r.status}`, 'err');
+  } catch (e) {
+    showResult('burnResult', `Ошибка: ${e.message}`);
+  }
+}
+
+// ─── 6. REPLAY ─────────────────────────────────────────
+async function replayExecute() {
+  showResult('replayResult', 'Запуск верификации реплей...');
+  try {
+    const r = await api('/api/observer');
+    if (r.ok) {
+      const data = r.data;
+      const ue = data.ue_units || {};
+      const total = (ue.active || 0) + (ue.transferred || 0) + (ue.burned || 0) + (ue.impulse || 0);
+      const acts24 = data.backend?.acts_24h || '?';
+      const msg = [
+        `=== ВЕРИФИКАЦИЯ РЕПЛЕЙ ===`,
+        `Всего У.Е. в системе: ${total}`,
+        `  Активных: ${ue.active || 0}`,
+        `  Переданных: ${ue.transferred || 0}`,
+        `  Сожжённых: ${ue.burned || 0}`,
+        `  Импульсных: ${ue.impulse || 0}`,
+        `Актов (24ч): ${acts24}`,
+        `О.К.: ${data.ro_dag?.total_ok || '?'}`,
+        `Фаза: ${data.metronome?.current_utc ? 'доступна' : 'N/A'}`,
+        '', '✓ Реплей завершён — данные выше',
+        'ℹ Полный реплей требует сканирования acts_log (на стороне сервера)',
+      ].join('\n');
+      showResult('replayResult', msg);
+      log('tcLog', `Реплей: ${total} У.Е. проверено`, 'ok');
+    } else {
+      showResult('replayResult', `Ошибка Observer API: ${JSON.stringify(r.data)}`);
+    }
+  } catch (e) {
+    showResult('replayResult', `Ошибка: ${e.message}`);
+  }
+}
+
+// ─── 7. PRESENCE ───────────────────────────────────────
+async function presenceShow() {
+  const ok = $('presenceOk').value.trim();
+  try {
+    const r = await api(`/api/presence/${encodeURIComponent(ok)}`);
+    showResult('presenceResult', JSON.stringify(r.data, null, 2));
+  } catch (e) {
+    showResult('presenceResult', `Ошибка: ${e.message}`);
+  }
+}
+
+async function mirrorShow() {
+  const ok = $('presenceOk').value.trim();
+  try {
+    const r = await api(`/api/mirror/${encodeURIComponent(ok)}`);
+    showResult('presenceResult', JSON.stringify(r.data, null, 2));
+  } catch (e) {
+    showResult('presenceResult', `Ошибка: ${e.message}`);
+  }
+}
+
+async function observerShow() {
+  try {
+    const r = await api('/api/observer');
+    showResult('presenceResult', JSON.stringify(r.data, null, 2));
+  } catch (e) {
+    showResult('presenceResult', `Ошибка: ${e.message}`);
+  }
+}
+
+// ─── 8. VERSION SWITCHER ──────────────────────────────
+const VERSION_MAP = {
+  'v0.4.1.TEST': { limit: 13, triads: 'T1-T5', desc: 'Текущая, 3-13 R.U./день' },
+  'v1.0.01': { limit: 13, triads: 'T1-T5', desc: 'Стабильная, +№22' },
+  'v3.0.01': { limit: 20, triads: 'T1-T5, K1, K2', desc: 'K2 разблокирован' },
+  'v4.0.01': { limit: 56, triads: 'T1-T5, K1, K2, E1, E2', desc: 'T5→K3, EXT открыты' },
+};
+
+function versionPreview() {
+  const ver = $('versionSelect').value;
+  const info = VERSION_MAP[ver];
+  if (!info) { showPreview('versionPreview', 'Неизвестная версия', 'error'); return; }
+  const msg = [
+    `Версия: ${ver}`,
+    `Макс. R.U./день: ${info.limit}`,
+    `Доступные триады: ${info.triads}`,
+    `Описание: ${info.desc}`,
+    '', 'ℹ Смена версии обновляет лимиты и триады локально.',
+    '   Версия сервера задаётся в emission-policy.js',
+  ].join('\n');
+  showPreview('versionPreview', msg, 'info');
+}
+
+function versionApply() {
+  const ver = $('versionSelect').value;
+  const info = VERSION_MAP[ver];
+  STATE.version = ver;
+  $('versionResult').textContent = [
+    `✓ Переключено на ${ver}`,
+    `  Лимит: ${info.limit} R.U./день`,
+    `  Триады: ${info.triads}`,
+    `  ${info.desc}`,
+  ].join('\n');
+  log('tcLog', `Версия → ${ver} (лимит: ${info.limit})`, 'ok');
+}
+
+// ─── TEST-CYCLE-01 ─────────────────────────────────────
+const TC_STEPS = [
+  { id: 1, label: 'Создать О.К.', desc: 'Создать ::test:1:: и ::test:2::' },
+  { id: 2, label: 'Проверить присутствие', desc: 'GET /api/presence для обоих О.К.' },
+  { id: 3, label: 'Эмитировать R.U.', desc: 'Эмиссия T1 для ::test:1::' },
+  { id: 4, label: 'Передать', desc: 'Передать У.Е. на ::test:2::' },
+  { id: 5, label: 'Тишина', desc: 'Симуляция фазы тишины' },
+  { id: 6, label: 'Сжечь', desc: 'Выполнить сжигание' },
+  { id: 7, label: 'Реплей', desc: 'Запустить верификацию реплей' },
+  { id: 8, label: 'Финальное присутствие', desc: 'Финальная проверка присутствия' },
+];
+
+async function tcStep(n) {
+  STATE.tcStep = n;
+  // Highlight current
+  for (let i = 1; i <= 8; i++) {
+    const btn = $(`tc${i}`);
+    btn.className = i === n ? 'active' : (i < n ? 'done' : '');
+  }
+  log('tcLog', `▶ Step ${n}: ${TC_STEPS[n-1].label} — ${TC_STEPS[n-1].desc}`, 'info');
+
+  switch (n) {
+    case 1:
+      // Create 2 O.K.s
+      for (const key of ['::test:1::', '::test:2::']) {
+        try {
+          const r = await api('/api/threshold', { method: 'POST', body: { ok_key: key } });
+          log('tcLog', `  ${key} → ${r.ok ? '✓ создан' : (r.status === 409 ? '✓ уже существует' : '✗ ' + (r.data?.error || r.status))}`, r.ok || r.status === 409 ? 'ok' : 'err');
+        } catch (e) { log('tcLog', `  ${key} → Ошибка: ${e.message}`, 'err'); }
+      }
+      break;
+    case 2:
+      for (const key of ['::test:1::', '::test:2::']) {
+        try {
+          const r = await api(`/api/presence/${encodeURIComponent(key)}`);
+          const flow = r.data?.projection?.ue_flow ?? '?';
+          log('tcLog', `  ${key} → Поток У.Е.: ${flow}`, 'ok');
+        } catch (e) { log('tcLog', `  ${key} → Ошибка: ${e.message}`, 'err'); }
+      }
+      break;
+    case 3:
+      try {
+        const r = await api('/api/acts', {
+          method: 'POST',
+          body: { act_type: 'EMISSION', actor_ok: '::test:1::', payload: { triads: ['T1'] } },
+        });
+        log('tcLog', `  Эмиссия T1 → ${r.ok ? '✓ ' + (r.data?.ue_units?.length || 0) + ' У.Е.' : '✗ ' + (r.data?.error || r.status)}`, r.ok ? 'ok' : 'err');
+        if (!r.ok && r.data) showResult('emitResult', JSON.stringify(r.data, null, 2));
+      } catch (e) { log('tcLog', `  Эмиссия → Ошибка: ${e.message}`, 'err'); }
+      break;
+    case 4:
+      // Find an active UE to transfer
+      try {
+        const obs = await api('/api/observer');
+        let ueUuid = null;
+        if (obs.ok && obs.data?.ro_dag?.active_ue) {
+          const pres = await api(`/api/presence/${encodeURIComponent('::test:1::')}`);
+          log('tcLog', `  Данные присутствия: ${JSON.stringify(pres.data).slice(0,200)}`, 'info');
+        }
+        const tr = await api('/api/acts', {
+          method: 'POST',
+          body: { act_type: 'TRANSFER', actor_ok: '::test:1::', target_ok: '::test:2::', payload: {} },
+        });
+        log('tcLog', `  Передача → ${tr.ok ? '✓ выполнено' : (tr.status === 400 ? 'ℹ нет У.Е. для передачи (ожидаемо)' : '✗ ' + (tr.data?.error || tr.status))}`, tr.ok ? 'ok' : 'info');
+      } catch (e) { log('tcLog', `  Передача → Ошибка: ${e.message}`, 'err'); }
+      break;
+    case 5:
+      log('tcLog', `  Симуляция тишины: сдвиг на 19:55`, 'info');
+      timeShift(0);
+      const now = new Date();
+      const h = now.getUTCHours();
+      let targetH;
+      if (h >= 4 && h < 19) targetH = 19 - h + 0.92;
+      else if (h >= 20 || h < 4) targetH = (24 - h + 19.92) % 24;
+      else targetH = 0;
+      timeShift(targetH > 0 ? targetH : 0.5);
+      log('tcLog', `  Фаза: ${getSimulatedTime().phase}`, getSimulatedTime().phase === 'silence' ? 'ok' : 'warn');
+      break;
+    case 6:
+      await burnExecute();
+      break;
+    case 7:
+      await replayExecute();
+      break;
+    case 8:
+      await observerShow();
+      log('tcLog', `  Финальная проверка присутствия — см. панель Наблюдателя`, 'ok');
+      break;
+  }
+
+  // Auto verify
+  try {
+    const h = await healthCheck();
+    log('tcLog', `  Авто-проверка: ${h ? '✓ статус OK' : '✗ статус ОШИБКА'}`, h ? 'ok' : 'err');
+  } catch (e) {
+    log('tcLog', `  Авто-проверка ошибка: ${e.message}`, 'err');
+  }
+}
+
+function tcReset() {
+  STATE.tcStep = 0;
+  for (let i = 1; i <= 8; i++) $(`tc${i}`).className = '';
+  $('tcLog').innerHTML = '';
+  timeShift(0);
+  log('tcLog', 'ТЕСТ-ЦИКЛ-01 сброшен', 'info');
+}
+
+// ─── INIT ──────────────────────────────────────────────
+setInterval(updateTimeDisplay, 1000);
+updateTimeDisplay();
+log('tcLog', 'ПИГ ТЕСТ КОНСОЛЬ v0.4.01 загружена', 'info');
+log('tcLog', 'API: ' + $('apiUrl').value, 'info');
+healthCheck();
+</script>
+</body>
+</html>
