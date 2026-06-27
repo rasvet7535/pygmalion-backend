@@ -3,7 +3,7 @@ FROM node:22-alpine
 
 # Метаданные
 LABEL maintainer="Pygmalion Team"
-LABEL version="0.4.0-alpha"
+LABEL version="0.4.02"
 LABEL description="Pygmalion NOD Platform Backend"
 
 # Рабочая директория

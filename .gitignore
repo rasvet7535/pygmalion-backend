@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Docker volumes
+pgdata*/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node
+dist/
+build/
+coverage/
+.nyc_output/
+
+# Jules / AI agents
+.mimocode/
+.graphify/
+
+# Backups
+*.bak
+*.bak.*

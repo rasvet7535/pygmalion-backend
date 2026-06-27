@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  sync-tests:
+    name: Sync Tests (no DB)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --only=production
+      - name: PDA Unit Tests
+        run: node PDA/tests/pda.test.js
+      - name: Canon Contract Tests
+        run: node PDA/tests/canon-contract.test.js
+
+  integration-tests:
+    name: Integration Tests + Replay
+    runs-on: ubuntu-latest
+    needs: sync-tests
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: pygmalion_ci
+          POSTGRES_USER: pygmalion
+          POSTGRES_PASSWORD: ci_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pygmalion -d pygmalion_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://pygmalion:ci_test_password@localhost:5432/pygmalion_ci
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --only=production
+
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Init Schema
+        run: psql "$DATABASE_URL" -f sql-schema/schema-v3.1-canonical.sql
+
+      - name: PDA Unit Tests (with DB)
+        run: node PDA/tests/pda.test.js
+
+      - name: Canon Contract Tests
+        run: node PDA/tests/canon-contract.test.js
+
+      - name: Docker Integration Tests
+        run: node tests/docker-integration.test.js
+
+      - name: Seed Test Data
+        run: node tools/ci-seed.js
+
+      - name: Replay Verification
+        run: node tools/replay-core.js
+
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: sync-tests
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t pygmalion-backend:test .
