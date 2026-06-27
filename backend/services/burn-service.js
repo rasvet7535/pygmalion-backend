@@ -32,8 +32,8 @@ async function execute() {
   const actors = [...new Set(ues.map(u => u.actor_ok))];
   if (actors.length > 0) {
     await pool.query(
-      `UPDATE ok_identity SET last_act_at = NOW(), last_act_type = 'BURNED' WHERE ok_key = ANY($1::text[])`,
-      [actors]
+      `UPDATE ok_identity SET last_act_at = $2, last_act_type = 'BURNED' WHERE ok_key = ANY($1::text[])`,
+      [actors, actResult.rows[0].created_at]
     );
   }
 

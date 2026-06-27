@@ -50,8 +50,8 @@ async function execute(payload) {
   );
 
   await pool.query(
-    `UPDATE ok_identity SET last_act_at = NOW(), last_act_type = 'TRANSFER' WHERE ok_key = $1`,
-    [actor_ok]
+    `UPDATE ok_identity SET last_act_at = $2, last_act_type = 'TRANSFER' WHERE ok_key = $1`,
+    [actor_ok, actResult.rows[0].created_at]
   );
 
   return {

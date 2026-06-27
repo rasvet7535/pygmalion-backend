@@ -60,14 +60,14 @@ async function execute(payload) {
     ['EMISSION', actor_ok, JSON.stringify({ triads, ueNumbers, totalUE: validation.totalUE, burnAt }), parentRefs]
   );
 
-  const actId = result.rows[0].act_id;
+  const { act_id: actId, created_at: createdAt } = result.rows[0];
 
   const params = [];
   const valueRows = [];
   ueEntries.forEach((e, i) => {
-    const offset = i * 6;
-    valueRows.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, NOW())`);
-    params.push(actId, e.ue_number, e.triad, actor_ok, 'active', burnAt);
+    const offset = i * 7;
+    valueRows.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`);
+    params.push(actId, e.ue_number, e.triad, actor_ok, 'active', burnAt, createdAt);
   });
 
   await pool.query(
@@ -77,8 +77,8 @@ async function execute(payload) {
   );
 
   await pool.query(
-    `UPDATE ok_identity SET last_act_at = NOW(), last_act_type = 'EMISSION' WHERE ok_key = $1`,
-    [actor_ok]
+    `UPDATE ok_identity SET last_act_at = $2, last_act_type = 'EMISSION' WHERE ok_key = $1`,
+    [actor_ok, createdAt]
   );
 
   return {

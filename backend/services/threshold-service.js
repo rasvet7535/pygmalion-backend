@@ -30,8 +30,8 @@ async function execute(payload) {
   );
 
   await pool.query(
-    `UPDATE ok_identity SET last_act_at = NOW(), last_act_type = 'THRESHOLD_CROSSED' WHERE ok_key = $1`,
-    [ok_key]
+    `UPDATE ok_identity SET last_act_at = $2, last_act_type = 'THRESHOLD_CROSSED' WHERE ok_key = $1`,
+    [ok_key, actResult.rows[0].created_at]
   );
 
   return {
