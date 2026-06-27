@@ -89,17 +89,16 @@ async function seed() {
       `INSERT INTO acts_log (act_id, act_type, actor_ok, payload, created_at)
        VALUES ($1, 'BURNED', $2, $3, $4)`,
       [burnedActId, '::CIUSER::', JSON.stringify({
-        ue_uuid: ueUuids[2],
-        ue_number: 3,
-        triad: 'T1',
+        ue_uuids: [ueUuids[2]],
+        count: 1,
         burn_at: BURN_AT.toISOString()
       }), new Date(NOW.getTime() + 120000)]
     );
 
     await client.query(
-      `UPDATE ue_units SET status = 'burned', transferred_at = $1
+      `UPDATE ue_units SET status = 'burned', burn_act_id = $1
        WHERE ue_uuid = $2`,
-      [new Date(NOW.getTime() + 120000), ueUuids[2]]
+      [burnedActId, ueUuids[2]]
     );
 
     await client.query('COMMIT');

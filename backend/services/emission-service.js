@@ -62,8 +62,19 @@ async function execute(payload) {
 
   const actId = result.rows[0].act_id;
 
-  const ueValues = ueEntries.map(e => `('${actId}', ${e.ue_number}, '${e.triad}', '${actor_ok}', 'active', '${burnAt}', NOW())`).join(', ');
-  await pool.query(`INSERT INTO ue_units (emission_act_id, ue_number, triad, actor_ok, status, burn_at, created_at) VALUES ${ueValues}`);
+  const params = [];
+  const valueRows = [];
+  ueEntries.forEach((e, i) => {
+    const offset = i * 6;
+    valueRows.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, NOW())`);
+    params.push(actId, e.ue_number, e.triad, actor_ok, 'active', burnAt);
+  });
+
+  await pool.query(
+    `INSERT INTO ue_units (emission_act_id, ue_number, triad, actor_ok, status, burn_at, created_at)
+     VALUES ${valueRows.join(', ')}`,
+    params
+  );
 
   await pool.query(
     `UPDATE ok_identity SET last_act_at = NOW(), last_act_type = 'EMISSION' WHERE ok_key = $1`,
