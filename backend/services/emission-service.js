@@ -42,10 +42,14 @@ async function execute(payload) {
     return { success: false, error: validation.error };
   }
 
-  const ueNumbers = [];
+  const ueEntries = [];
   for (const t of triads) {
-    ueNumbers.push(...Canon.emissionPolicy.getUENumbersByTriad(t));
+    const nums = Canon.emissionPolicy.getUENumbersByTriad(t);
+    for (const n of nums) {
+      ueEntries.push({ triad: t, ue_number: n });
+    }
   }
+  const ueNumbers = ueEntries.map(e => e.ue_number);
 
   const parentRefs = await _selectParentRefs(actor_ok);
   const burnAt = Metronome.calculateBurnAt();
@@ -58,8 +62,8 @@ async function execute(payload) {
 
   const actId = result.rows[0].act_id;
 
-  const ueValues = ueNumbers.map(n => `(${actId}, ${n}, 'active', '${burnAt}', NOW())`).join(', ');
-  await pool.query(`INSERT INTO ue_units (act_id, ue_number, status, burn_at, created_at) VALUES ${ueValues}`);
+  const ueValues = ueEntries.map(e => `('${actId}', ${e.ue_number}, '${e.triad}', '${actor_ok}', 'active', '${burnAt}', NOW())`).join(', ');
+  await pool.query(`INSERT INTO ue_units (emission_act_id, ue_number, triad, actor_ok, status, burn_at, created_at) VALUES ${ueValues}`);
 
   await pool.query(
     `UPDATE ok_identity SET last_act_at = NOW(), last_act_type = 'EMISSION' WHERE ok_key = $1`,

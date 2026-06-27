@@ -21,7 +21,7 @@ async function execute() {
 
 async function _snapshot() {
   const result = await pool.query(
-    'SELECT ue_uuid, actor_ok, ue_number, status, burn_at, act_id FROM ue_units ORDER BY ue_uuid'
+    'SELECT ue_uuid, actor_ok, ue_number, status, burn_at, emission_act_id FROM ue_units ORDER BY ue_uuid'
   );
   return result.rows;
 }
@@ -40,14 +40,17 @@ async function _reconstruct() {
     switch (act.act_type) {
       case 'EMISSION': {
         const p = typeof act.payload === 'string' ? JSON.parse(act.payload) : act.payload;
-        const ueNumbers = p?.ueNumbers || [];
+        const triads = p?.triads || [];
         const burnAt = p?.burnAt || new Date(act.created_at).toISOString();
-        for (const num of ueNumbers) {
-          await pool.query(
-            `INSERT INTO ue_units (act_id, actor_ok, ue_number, status, burn_at, created_at)
-             VALUES ($1, $2, $3, 'active', $4, $5)`,
-            [act.act_id, act.actor_ok, num, burnAt, act.created_at]
-          );
+        for (const t of triads) {
+          const nums = Canon.emissionPolicy.getUENumbersByTriad(t);
+          for (const num of nums) {
+            await pool.query(
+              `INSERT INTO ue_units (emission_act_id, actor_ok, ue_number, triad, status, burn_at, created_at)
+               VALUES ($1, $2, $3, $4, 'active', $5, $6)`,
+              [act.act_id, act.actor_ok, num, t, burnAt, act.created_at]
+            );
+          }
         }
         break;
       }
@@ -86,14 +89,14 @@ function _compare(snapshot, reconstructed) {
     if (!r) { mismatches.push({ ue_uuid: id, field: 'exists', expected: true, got: false }); continue; }
     for (const key of ['actor_ok', 'status', 'burn_at']) {
       if (String(s[key]) !== String(r[key])) {
-        mismatches.push({ ue_id: id, field: key, expected: s[key], got: r[key] });
+        mismatches.push({ ue_uuid: id, field: key, expected: s[key], got: r[key] });
       }
     }
   }
 
   for (const [id] of recMap) {
     if (!snapMap.has(id)) {
-      mismatches.push({ ue_id: id, field: 'exists', expected: false, got: true });
+      mismatches.push({ ue_uuid: id, field: 'exists', expected: false, got: true });
     }
   }
 
@@ -140,18 +143,22 @@ async function _reconstructInMemory() {
 
     switch (act.act_type) {
       case 'EMISSION': {
-        const ueNumbers = p?.ueNumbers || [];
+        const triads = p?.triads || [];
         const burnAt = p?.burnAt || new Date(act.created_at).toISOString();
-        for (const num of ueNumbers) {
-          const ue_uuid = `${act.act_id}-${num}`;
-          units.set(ue_uuid, {
-            ue_uuid,
-            actor_ok: act.actor_ok,
-            ue_number: num,
-            status: 'active',
-            burn_at: burnAt,
-            act_id: act.act_id,
-          });
+        for (const t of triads) {
+          const nums = Canon.emissionPolicy.getUENumbersByTriad(t);
+          for (const num of nums) {
+            const ue_uuid = `${act.act_id}-${num}`;
+            units.set(ue_uuid, {
+              ue_uuid,
+              actor_ok: act.actor_ok,
+              ue_number: num,
+              triad: t,
+              status: 'active',
+              burn_at: burnAt,
+              emission_act_id: act.act_id,
+            });
+          }
         }
         break;
       }
