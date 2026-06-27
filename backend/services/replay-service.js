@@ -21,7 +21,7 @@ async function execute() {
 
 async function _snapshot() {
   const result = await pool.query(
-    'SELECT ue_uuid, actor_ok, ue_number, status, burn_at, act_id FROM ue_units ORDER BY ue_uuid'
+    'SELECT ue_uuid, actor_ok, ue_number, triad, status, burn_at, emission_act_id FROM ue_units ORDER BY ue_uuid'
   );
   return result.rows;
 }
@@ -44,9 +44,9 @@ async function _reconstruct() {
         const burnAt = p?.burnAt || new Date(act.created_at).toISOString();
         for (const num of ueNumbers) {
           await pool.query(
-            `INSERT INTO ue_units (act_id, actor_ok, ue_number, status, burn_at, created_at)
-             VALUES ($1, $2, $3, 'active', $4, $5)`,
-            [act.act_id, act.actor_ok, num, burnAt, act.created_at]
+            `INSERT INTO ue_units (ue_number, triad, actor_ok, status, burn_at, created_at, emission_act_id)
+             VALUES ($1, $2, $3, 'active', $4, $5, $6)`,
+            [num, p.triads?.[0] || 'T1', act.actor_ok, burnAt, act.created_at, act.act_id]
           );
         }
         break;

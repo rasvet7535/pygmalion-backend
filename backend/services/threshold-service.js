@@ -19,7 +19,7 @@ async function execute(payload) {
   }
 
   await pool.query(
-    `INSERT INTO ok_identity (ok_key, status, created_at) VALUES ($1, 'active', NOW())`,
+    `INSERT INTO ok_identity (ok_key, created_at) VALUES ($1, NOW())`,
     [ok_key]
   );
 
