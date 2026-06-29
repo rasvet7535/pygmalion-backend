@@ -10,6 +10,7 @@
  */
 
 const { Pool } = require('pg');
+const crypto = require('crypto');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL
@@ -24,6 +25,19 @@ function uuid() {
     const r = Math.random() * 16 | 0;
     return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
   });
+}
+
+function _generateUeUuid(actId, ueNumber) {
+  const hash = crypto.createHash('md5')
+    .update(`${actId}:${ueNumber}`)
+    .digest('hex');
+  return [
+    hash.substring(0, 8),
+    hash.substring(8, 12),
+    hash.substring(12, 16),
+    hash.substring(16, 20),
+    hash.substring(20)
+  ].join('-');
 }
 
 async function seed() {
@@ -47,16 +61,17 @@ async function seed() {
        VALUES ($1, 'EMISSION', $2, $3, $4)`,
       [emissionActId, '::CIUSER::', JSON.stringify({
         triads: ['T1'],
-        burn_at: BURN_AT.toISOString(),
+        ueNumbers: [1, 2, 3],
+        burnAt: BURN_AT.toISOString(),
         phase: 'active',
-        total_ue: 6
+        totalUE: 3
       }), NOW]
     );
 
     // Create ue_units for this emission
     const ueUuids = [];
     for (const num of [1, 2, 3]) {
-      const ueId = uuid();
+      const ueId = _generateUeUuid(emissionActId, num);
       ueUuids.push(ueId);
       await client.query(
         `INSERT INTO ue_units (ue_uuid, ue_number, triad, actor_ok, status, created_at, burn_at, emission_act_id)
