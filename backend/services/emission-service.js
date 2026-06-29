@@ -54,7 +54,7 @@ async function execute(payload) {
   const result = await pool.query(
     `INSERT INTO acts_log (act_type, actor_ok, payload, refs, created_at)
      VALUES ($1, $2, $3, $4, NOW()) RETURNING act_id, created_at`,
-    ['EMISSION', actor_ok, JSON.stringify({ triads, burn_at: burnAt, phase, total_ue: validation.totalUE }), parentRefs]
+    ['EMISSION', actor_ok, JSON.stringify({ triads, ueNumbers, totalUE: validation.totalUE, total_ue: validation.totalUE, burnAt, burn_at: burnAt, phase }), parentRefs]
   );
 
   const { act_id, created_at } = result.rows[0];
@@ -79,6 +79,7 @@ async function execute(payload) {
     success: true,
     act_id,
     ue_count: validation.totalUE,
+    ue_numbers: ueNumbers,
     triads,
     burn_at: burnAt,
     actor_ok,

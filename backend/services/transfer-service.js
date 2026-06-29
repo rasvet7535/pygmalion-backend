@@ -56,7 +56,7 @@ async function execute(payload) {
 
   return {
     success: true,
-    act_id: actId,
+    act_id,
     ue_uuid: targetUe.ue_uuid,
     ue_number: targetUe.ue_number,
     triad: targetUe.triad,
