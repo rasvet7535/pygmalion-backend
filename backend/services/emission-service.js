@@ -56,14 +56,17 @@ async function execute(payload) {
     ['EMISSION', actor_ok, JSON.stringify({ triads, ueNumbers, totalUE: validation.totalUE, burnAt }), parentRefs]
   );
 
-  const actId = result.rows[0].act_id;
+  const { act_id, created_at } = result.rows[0];
 
-  for (const num of ueNumbers) {
-    await pool.query(
-      `INSERT INTO ue_units (ue_number, triad, actor_ok, status, burn_at, created_at, emission_act_id)
-       VALUES ($1, $2, $3, 'active', $4, NOW(), $5)`,
-      [num, triads[0], actor_ok, burnAt, actId]
-    );
+  for (const t of triads) {
+    const nums = Canon.emissionPolicy.getUENumbersByTriad(t) || [];
+    for (const num of nums) {
+      await pool.query(
+        `INSERT INTO ue_units (ue_number, triad, actor_ok, status, burn_at, created_at, emission_act_id)
+         VALUES ($1, $2, $3, 'active', $4, $5, $6)`,
+        [num, t, actor_ok, burnAt, created_at, act_id]
+      );
+    }
   }
 
   await pool.query(
