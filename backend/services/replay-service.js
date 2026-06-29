@@ -19,6 +19,16 @@ function _generateUeUuid(actId, ueNumber) {
   ].join('-');
 }
 
+/**
+ * Helper to normalize values for comparison.
+ * Ensures Date objects are compared as ISO strings.
+ */
+function _normalize(val) {
+  if (val instanceof Date) return val.toISOString();
+  if (val === null || val === undefined) return '';
+  return String(val);
+}
+
 async function execute() {
   const phase1 = await _snapshot();
   await _truncate();
@@ -81,7 +91,6 @@ async function _reconstruct() {
       }
       case 'BURNED': {
         const p_burned = typeof act.payload === 'string' ? JSON.parse(act.payload) : act.payload;
-        // Check for ue_uuid in BURNED act (single) or ue_ids (legacy/batch)
         const ue_uuid = p_burned?.ue_uuid;
         if (ue_uuid) {
           await pool.query(
@@ -112,8 +121,10 @@ function _compare(snapshot, reconstructed) {
     const r = recMap.get(id);
     if (!r) { mismatches.push({ ue_uuid: id, field: 'exists', expected: true, got: false }); continue; }
     for (const key of ['actor_ok', 'status', 'burn_at']) {
-      if (String(s[key]) !== String(r[key])) {
-        mismatches.push({ ue_id: id, field: key, expected: s[key], got: r[key] });
+      const sVal = _normalize(s[key]);
+      const rVal = _normalize(r[key]);
+      if (sVal !== rVal) {
+        mismatches.push({ ue_id: id, field: key, expected: sVal, got: rVal });
       }
     }
   }
