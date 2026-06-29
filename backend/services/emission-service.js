@@ -1,6 +1,24 @@
 const pool = require('../db');
 const Canon = require('../core/canon');
 const Metronome = require('../core/metronome');
+const crypto = require('crypto');
+
+/**
+ * Deterministic UUID generation to ensure Replay consistency.
+ * Uses a separator to prevent collisions (e.g., 1+11 vs 11+1).
+ */
+function _generateUeUuid(actId, ueNumber) {
+  const hash = crypto.createHash('md5')
+    .update(`${actId}:${ueNumber}`)
+    .digest('hex');
+  return [
+    hash.substring(0, 8),
+    hash.substring(8, 12),
+    hash.substring(12, 16),
+    hash.substring(16, 20),
+    hash.substring(20)
+  ].join('-');
+}
 
 async function _selectParentRefs(actor_ok, limit = 3) {
   const result = await pool.query(
@@ -57,18 +75,20 @@ async function execute(payload) {
   );
 
   const actId = result.rows[0].act_id;
+  const createdAt = result.rows[0].created_at;
 
   for (const num of ueNumbers) {
+    const ueUuid = _generateUeUuid(actId, num);
     await pool.query(
-      `INSERT INTO ue_units (ue_number, triad, actor_ok, status, burn_at, created_at, emission_act_id)
-       VALUES ($1, $2, $3, 'active', $4, NOW(), $5)`,
-      [num, triads[0], actor_ok, burnAt, actId]
+      `INSERT INTO ue_units (ue_uuid, ue_number, triad, actor_ok, status, burn_at, created_at, emission_act_id)
+       VALUES ($1, $2, $3, $4, 'active', $5, $6, $7)`,
+      [ueUuid, num, triads[0], actor_ok, burnAt, createdAt, actId]
     );
   }
 
   await pool.query(
-    `UPDATE ok_identity SET last_act_at = NOW(), last_act_type = 'EMISSION' WHERE ok_key = $1`,
-    [actor_ok]
+    `UPDATE ok_identity SET last_act_at = $1, last_act_type = 'EMISSION' WHERE ok_key = $2`,
+    [createdAt, actor_ok]
   );
 
   return {

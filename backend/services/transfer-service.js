@@ -43,15 +43,16 @@ async function execute(payload) {
   );
 
   const actId = actResult.rows[0].act_id;
+  const createdAt = actResult.rows[0].created_at;
 
   await pool.query(
-    `UPDATE ue_units SET status = 'transferred', transferred_at = NOW(), transfer_act_id = $1, actor_ok = $2 WHERE ue_uuid = $3`,
-    [actId, target_ok, targetUe.ue_uuid]
+    `UPDATE ue_units SET status = 'transferred', transferred_at = $1, transfer_act_id = $2, actor_ok = $3 WHERE ue_uuid = $4`,
+    [createdAt, actId, target_ok, targetUe.ue_uuid]
   );
 
   await pool.query(
-    `UPDATE ok_identity SET last_act_at = NOW(), last_act_type = 'TRANSFER' WHERE ok_key = $1`,
-    [actor_ok]
+    `UPDATE ok_identity SET last_act_at = $1, last_act_type = 'TRANSFER' WHERE ok_key = $2`,
+    [createdAt, actor_ok]
   );
 
   return {
@@ -62,7 +63,7 @@ async function execute(payload) {
     triad: targetUe.triad,
     from: actor_ok,
     to: target_ok,
-    transferred_at: actResult.rows[0].created_at,
+    transferred_at: createdAt,
   };
 }
 

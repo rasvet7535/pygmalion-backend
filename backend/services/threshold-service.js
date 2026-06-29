@@ -18,27 +18,25 @@ async function execute(payload) {
     return { success: false, error: `О.К. "${ok_key}" уже существует`, code: 'CONFLICT' };
   }
 
-  await pool.query(
-    `INSERT INTO ok_identity (ok_key, created_at) VALUES ($1, NOW())`,
-    [ok_key]
-  );
-
   const actResult = await pool.query(
     `INSERT INTO acts_log (act_type, actor_ok, payload, created_at)
      VALUES ('THRESHOLD_CROSSED', $1, $2, NOW()) RETURNING act_id, created_at`,
     [ok_key, JSON.stringify({ ok_key })]
   );
 
+  const actId = actResult.rows[0].act_id;
+  const createdAt = actResult.rows[0].created_at;
+
   await pool.query(
-    `UPDATE ok_identity SET last_act_at = NOW(), last_act_type = 'THRESHOLD_CROSSED' WHERE ok_key = $1`,
-    [ok_key]
+    `INSERT INTO ok_identity (ok_key, created_at, last_act_at, last_act_type) VALUES ($1, $2, $2, 'THRESHOLD_CROSSED')`,
+    [ok_key, createdAt]
   );
 
   return {
     success: true,
     ok_key,
-    act_id: actResult.rows[0].act_id,
-    created_at: actResult.rows[0].created_at,
+    act_id: actId,
+    created_at: createdAt,
     message: `О.К. "${ok_key}" зарегистрирован через порог вхождения`,
   };
 }
