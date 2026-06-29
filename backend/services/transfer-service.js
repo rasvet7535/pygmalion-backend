@@ -42,11 +42,11 @@ async function execute(payload) {
     ['TRANSFER', actor_ok, target_ok, JSON.stringify({ ue_uuid: targetUe.ue_uuid, ue_number: targetUe.ue_number, triad: targetUe.triad }), parentRefs]
   );
 
-  const actId = actResult.rows[0].act_id;
+  const { act_id, created_at } = actResult.rows[0];
 
   await pool.query(
-    `UPDATE ue_units SET status = 'transferred', transferred_at = NOW(), transfer_act_id = $1, actor_ok = $2 WHERE ue_uuid = $3`,
-    [actId, target_ok, targetUe.ue_uuid]
+    `UPDATE ue_units SET status = 'transferred', transferred_at = $1, transfer_act_id = $2, actor_ok = $3 WHERE ue_uuid = $4`,
+    [created_at, act_id, target_ok, targetUe.ue_uuid]
   );
 
   await pool.query(
@@ -56,7 +56,7 @@ async function execute(payload) {
 
   return {
     success: true,
-    act_id: actId,
+    act_id,
     ue_uuid: targetUe.ue_uuid,
     ue_number: targetUe.ue_number,
     triad: targetUe.triad,
