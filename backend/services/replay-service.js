@@ -1,5 +1,33 @@
 const pool = require('../db');
 const Canon = require('../core/canon');
+const crypto = require('crypto');
+
+/**
+ * Deterministic UUID generation to ensure Replay consistency.
+ * Uses a separator to prevent collisions (e.g., 1+11 vs 11+1).
+ */
+function _generateUeUuid(actId, ueNumber) {
+  const hash = crypto.createHash('md5')
+    .update(`${actId}:${ueNumber}`)
+    .digest('hex');
+  return [
+    hash.substring(0, 8),
+    hash.substring(8, 12),
+    hash.substring(12, 16),
+    hash.substring(16, 20),
+    hash.substring(20)
+  ].join('-');
+}
+
+/**
+ * Helper to normalize values for comparison.
+ * Ensures Date objects are compared as ISO strings.
+ */
+function _normalize(val) {
+  if (val instanceof Date) return val.toISOString();
+  if (val === null || val === undefined) return '';
+  return String(val);
+}
 
 async function execute() {
   const phase1 = await _snapshot();
@@ -37,22 +65,22 @@ async function _reconstruct() {
   );
 
   for (const act of acts.rows) {
+    const p = typeof act.payload === 'string' ? JSON.parse(act.payload) : act.payload;
     switch (act.act_type) {
       case 'EMISSION': {
-        const p = typeof act.payload === 'string' ? JSON.parse(act.payload) : act.payload;
         const ueNumbers = p?.ueNumbers || [];
         const burnAt = p?.burnAt || new Date(act.created_at).toISOString();
         for (const num of ueNumbers) {
+          const ue_uuid = _generateUeUuid(act.act_id, num);
           await pool.query(
-            `INSERT INTO ue_units (ue_number, triad, actor_ok, status, burn_at, created_at, emission_act_id)
-             VALUES ($1, $2, $3, 'active', $4, $5, $6)`,
-            [num, p.triads?.[0] || 'T1', act.actor_ok, burnAt, act.created_at, act.act_id]
+            `INSERT INTO ue_units (ue_uuid, ue_number, triad, actor_ok, status, burn_at, created_at, emission_act_id)
+             VALUES ($1, $2, $3, $4, 'active', $5, $6, $7)`,
+            [ue_uuid, num, p.triads?.[0] || 'T1', act.actor_ok, burnAt, act.created_at, act.act_id]
           );
         }
         break;
       }
       case 'TRANSFER': {
-        const p = typeof act.payload === 'string' ? JSON.parse(act.payload) : act.payload;
         if (p?.ue_uuid) {
           await pool.query(
             `UPDATE ue_units SET status = 'transferred', actor_ok = $2 WHERE ue_uuid = $1`,
@@ -62,13 +90,21 @@ async function _reconstruct() {
         break;
       }
       case 'BURNED': {
-        const p = typeof act.payload === 'string' ? JSON.parse(act.payload) : act.payload;
-        const ids = p?.ue_ids || [];
-        if (ids.length > 0) {
+        const p_burned = typeof act.payload === 'string' ? JSON.parse(act.payload) : act.payload;
+        const ue_uuid = p_burned?.ue_uuid;
+        if (ue_uuid) {
           await pool.query(
-            `UPDATE ue_units SET status = 'burned' WHERE ue_uuid = ANY($1::uuid[])`,
-            [ids]
+             `UPDATE ue_units SET status = 'burned' WHERE ue_uuid = $1`,
+             [ue_uuid]
           );
+        } else {
+          const ids = p_burned?.ue_ids || [];
+          if (ids.length > 0) {
+            await pool.query(
+              `UPDATE ue_units SET status = 'burned' WHERE ue_uuid = ANY($1::uuid[])`,
+              [ids]
+            );
+          }
         }
         break;
       }
@@ -85,8 +121,10 @@ function _compare(snapshot, reconstructed) {
     const r = recMap.get(id);
     if (!r) { mismatches.push({ ue_uuid: id, field: 'exists', expected: true, got: false }); continue; }
     for (const key of ['actor_ok', 'status', 'burn_at']) {
-      if (String(s[key]) !== String(r[key])) {
-        mismatches.push({ ue_id: id, field: key, expected: s[key], got: r[key] });
+      const sVal = _normalize(s[key]);
+      const rVal = _normalize(r[key]);
+      if (sVal !== rVal) {
+        mismatches.push({ ue_id: id, field: key, expected: sVal, got: rVal });
       }
     }
   }
@@ -143,7 +181,7 @@ async function _reconstructInMemory() {
         const ueNumbers = p?.ueNumbers || [];
         const burnAt = p?.burnAt || new Date(act.created_at).toISOString();
         for (const num of ueNumbers) {
-          const ue_uuid = `${act.act_id}-${num}`;
+          const ue_uuid = _generateUeUuid(act.act_id, num);
           units.set(ue_uuid, {
             ue_uuid,
             actor_ok: act.actor_ok,
@@ -166,10 +204,16 @@ async function _reconstructInMemory() {
         break;
       }
       case 'BURNED': {
-        const ids = p?.ue_ids || [];
-        for (const id of ids) {
-          const unit = units.get(id);
-          if (unit) unit.status = 'burned';
+        const ue_uuid = p?.ue_uuid;
+        if (ue_uuid) {
+           const unit = units.get(ue_uuid);
+           if (unit) unit.status = 'burned';
+        } else {
+          const ids = p?.ue_ids || [];
+          for (const id of ids) {
+            const unit = units.get(id);
+            if (unit) unit.status = 'burned';
+          }
         }
         break;
       }
