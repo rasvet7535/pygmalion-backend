@@ -1,6 +1,12 @@
 const pool = require('../db');
 const Canon = require('../core/canon');
 const Metronome = require('../core/metronome');
+const crypto = require('crypto');
+
+function _generateUEUUID(actId, ueNumber) {
+  const hash = crypto.createHash('sha256').update(`${actId}:${ueNumber}`).digest('hex');
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
+}
 
 async function _selectParentRefs(actor_ok, limit = 3) {
   const result = await pool.query(
@@ -13,7 +19,7 @@ async function _selectParentRefs(actor_ok, limit = 3) {
 async function _getDailyEmissionTotal(actor_ok) {
   const today = Metronome.getWindowStart();
   const result = await pool.query(
-    `SELECT COALESCE(SUM((payload->>'totalUE')::int), 0) as total
+    `SELECT COALESCE(SUM((payload->>'total_ue')::int), 0) as total
      FROM acts_log
      WHERE actor_ok = $1 AND act_type = 'EMISSION' AND created_at >= $2`,
     [actor_ok, today]
@@ -53,22 +59,24 @@ async function execute(payload) {
   const result = await pool.query(
     `INSERT INTO acts_log (act_type, actor_ok, payload, refs, created_at)
      VALUES ($1, $2, $3, $4, NOW()) RETURNING act_id, created_at`,
-    ['EMISSION', actor_ok, JSON.stringify({ triads, ueNumbers, totalUE: validation.totalUE, burnAt }), parentRefs]
+    ['EMISSION', actor_ok, JSON.stringify({ triads, ue_numbers: ueNumbers, total_ue: validation.totalUE, burn_at: burnAt, phase }), parentRefs]
   );
 
   const actId = result.rows[0].act_id;
+  const createdAt = result.rows[0].created_at;
 
   for (const num of ueNumbers) {
+    const ue_uuid = _generateUEUUID(actId, num);
     await pool.query(
-      `INSERT INTO ue_units (ue_number, triad, actor_ok, status, burn_at, created_at, emission_act_id)
-       VALUES ($1, $2, $3, 'active', $4, NOW(), $5)`,
-      [num, triads[0], actor_ok, burnAt, actId]
+      `INSERT INTO ue_units (ue_uuid, ue_number, triad, actor_ok, status, burn_at, created_at, emission_act_id)
+       VALUES ($1, $2, $3, $4, 'active', $5, $6, $7)`,
+      [ue_uuid, num, triads[0], actor_ok, burnAt, createdAt, actId]
     );
   }
 
   await pool.query(
-    `UPDATE ok_identity SET last_act_at = NOW(), last_act_type = 'EMISSION' WHERE ok_key = $1`,
-    [actor_ok]
+    `UPDATE ok_identity SET last_act_at = $1, last_act_type = 'EMISSION' WHERE ok_key = $2`,
+    [createdAt, actor_ok]
   );
 
   return {
