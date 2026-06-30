@@ -65,13 +65,16 @@ async function execute(payload) {
   const actId = result.rows[0].act_id;
   const createdAt = result.rows[0].created_at;
 
-  for (const num of ueNumbers) {
-    const ue_uuid = _generateUEUUID(actId, num);
-    await pool.query(
-      `INSERT INTO ue_units (ue_uuid, ue_number, triad, actor_ok, status, burn_at, created_at, emission_act_id)
-       VALUES ($1, $2, $3, $4, 'active', $5, $6, $7)`,
-      [ue_uuid, num, triads[0], actor_ok, burnAt, createdAt, actId]
-    );
+  for (const t of triads) {
+    const numbers = Canon.emissionPolicy.getUENumbersByTriad(t);
+    for (const num of numbers) {
+      const ue_uuid = _generateUEUUID(actId, num);
+      await pool.query(
+        `INSERT INTO ue_units (ue_uuid, ue_number, triad, actor_ok, status, burn_at, created_at, emission_act_id)
+         VALUES ($1, $2, $3, $4, 'active', $5, $6, $7)`,
+        [ue_uuid, num, t, actor_ok, burnAt, createdAt, actId]
+      );
+    }
   }
 
   await pool.query(
