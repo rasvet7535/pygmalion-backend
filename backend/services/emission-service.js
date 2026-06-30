@@ -1,6 +1,12 @@
 const pool = require('../db');
 const Canon = require('../core/canon');
 const Metronome = require('../core/metronome');
+const crypto = require('crypto');
+
+function _generateUEUUID(actId, ueNumber) {
+  const hash = crypto.createHash('sha256').update(`${actId}:${ueNumber}`).digest('hex');
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
+}
 
 async function _selectParentRefs(actor_ok, limit = 3) {
   const result = await pool.query(
@@ -57,18 +63,20 @@ async function execute(payload) {
   );
 
   const actId = result.rows[0].act_id;
+  const createdAt = result.rows[0].created_at;
 
   for (const num of ueNumbers) {
+    const ue_uuid = _generateUEUUID(actId, num);
     await pool.query(
-      `INSERT INTO ue_units (ue_number, triad, actor_ok, status, burn_at, created_at, emission_act_id)
-       VALUES ($1, $2, $3, 'active', $4, NOW(), $5)`,
-      [num, triads[0], actor_ok, burnAt, actId]
+      `INSERT INTO ue_units (ue_uuid, ue_number, triad, actor_ok, status, burn_at, created_at, emission_act_id)
+       VALUES ($1, $2, $3, $4, 'active', $5, $6, $7)`,
+      [ue_uuid, num, triads[0], actor_ok, burnAt, createdAt, actId]
     );
   }
 
   await pool.query(
-    `UPDATE ok_identity SET last_act_at = NOW(), last_act_type = 'EMISSION' WHERE ok_key = $1`,
-    [actor_ok]
+    `UPDATE ok_identity SET last_act_at = $1, last_act_type = 'EMISSION' WHERE ok_key = $2`,
+    [createdAt, actor_ok]
   );
 
   return {

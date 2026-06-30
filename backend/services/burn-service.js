@@ -17,11 +17,12 @@ async function execute() {
 
   const actResult = await pool.query(
     `INSERT INTO acts_log (act_type, actor_ok, payload, created_at)
-     VALUES ('BURNED', '::system::', $1, NOW()) RETURNING act_id`,
+     VALUES ('BURNED', '::system::', $1, NOW()) RETURNING act_id, created_at`,
     [JSON.stringify({ count: ues.length, ue_uuids: ues.map(u => u.ue_uuid) })]
   );
 
   const actId = actResult.rows[0].act_id;
+  const createdAt = actResult.rows[0].created_at;
 
   await pool.query(
     `UPDATE ue_units SET status = 'burned', burn_act_id = $2
@@ -32,8 +33,8 @@ async function execute() {
   const actors = [...new Set(ues.map(u => u.actor_ok))];
   if (actors.length > 0) {
     await pool.query(
-      `UPDATE ok_identity SET last_act_at = NOW(), last_act_type = 'BURNED' WHERE ok_key = ANY($1::text[])`,
-      [actors]
+      `UPDATE ok_identity SET last_act_at = $1, last_act_type = 'BURNED' WHERE ok_key = ANY($2::text[])`,
+      [createdAt, actors]
     );
   }
 

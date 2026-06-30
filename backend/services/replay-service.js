@@ -1,5 +1,11 @@
 const pool = require('../db');
 const Canon = require('../core/canon');
+const crypto = require('crypto');
+
+function _generateUEUUID(actId, ueNumber) {
+  const hash = crypto.createHash('sha256').update(`${actId}:${ueNumber}`).digest('hex');
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
+}
 
 async function execute() {
   const phase1 = await _snapshot();
@@ -43,10 +49,11 @@ async function _reconstruct() {
         const ueNumbers = p?.ueNumbers || [];
         const burnAt = p?.burnAt || new Date(act.created_at).toISOString();
         for (const num of ueNumbers) {
+          const ue_uuid = _generateUEUUID(act.act_id, num);
           await pool.query(
-            `INSERT INTO ue_units (ue_number, triad, actor_ok, status, burn_at, created_at, emission_act_id)
-             VALUES ($1, $2, $3, 'active', $4, $5, $6)`,
-            [num, p.triads?.[0] || 'T1', act.actor_ok, burnAt, act.created_at, act.act_id]
+            `INSERT INTO ue_units (ue_uuid, ue_number, triad, actor_ok, status, burn_at, created_at, emission_act_id)
+             VALUES ($1, $2, $3, $4, 'active', $5, $6, $7)`,
+            [ue_uuid, num, p.triads?.[0] || 'T1', act.actor_ok, burnAt, act.created_at, act.act_id]
           );
         }
         break;
@@ -63,7 +70,7 @@ async function _reconstruct() {
       }
       case 'BURNED': {
         const p = typeof act.payload === 'string' ? JSON.parse(act.payload) : act.payload;
-        const ids = p?.ue_ids || [];
+        const ids = p?.ue_uuids || p?.ue_ids || [];
         if (ids.length > 0) {
           await pool.query(
             `UPDATE ue_units SET status = 'burned' WHERE ue_uuid = ANY($1::uuid[])`,
@@ -84,16 +91,22 @@ function _compare(snapshot, reconstructed) {
   for (const [id, s] of snapMap) {
     const r = recMap.get(id);
     if (!r) { mismatches.push({ ue_uuid: id, field: 'exists', expected: true, got: false }); continue; }
-    for (const key of ['actor_ok', 'status', 'burn_at']) {
+    for (const key of ['actor_ok', 'status']) {
       if (String(s[key]) !== String(r[key])) {
-        mismatches.push({ ue_id: id, field: key, expected: s[key], got: r[key] });
+        mismatches.push({ ue_uuid: id, field: key, expected: s[key], got: r[key] });
       }
+    }
+    // Compare dates with 1-second tolerance
+    const sDate = new Date(s.burn_at).getTime();
+    const rDate = new Date(r.burn_at).getTime();
+    if (Math.abs(sDate - rDate) > 1000) {
+      mismatches.push({ ue_uuid: id, field: 'burn_at', expected: s.burn_at, got: r.burn_at });
     }
   }
 
   for (const [id] of recMap) {
     if (!snapMap.has(id)) {
-      mismatches.push({ ue_id: id, field: 'exists', expected: false, got: true });
+      mismatches.push({ ue_uuid: id, field: 'exists', expected: false, got: true });
     }
   }
 
@@ -143,14 +156,14 @@ async function _reconstructInMemory() {
         const ueNumbers = p?.ueNumbers || [];
         const burnAt = p?.burnAt || new Date(act.created_at).toISOString();
         for (const num of ueNumbers) {
-          const ue_uuid = `${act.act_id}-${num}`;
+          const ue_uuid = _generateUEUUID(act.act_id, num);
           units.set(ue_uuid, {
             ue_uuid,
             actor_ok: act.actor_ok,
             ue_number: num,
             status: 'active',
             burn_at: burnAt,
-            act_id: act.act_id,
+            emission_act_id: act.act_id,
           });
         }
         break;
@@ -166,7 +179,7 @@ async function _reconstructInMemory() {
         break;
       }
       case 'BURNED': {
-        const ids = p?.ue_ids || [];
+        const ids = p?.ue_uuids || p?.ue_ids || [];
         for (const id of ids) {
           const unit = units.get(id);
           if (unit) unit.status = 'burned';
