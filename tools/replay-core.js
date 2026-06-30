@@ -40,7 +40,7 @@ async function validateDailyEmission(client) {
     SELECT
       actor_ok,
       DATE(created_at) as day,
-      SUM((payload->>'total_ue')::int) as total_emitted,
+      SUM(COALESCE((payload->>'total_ue')::int, (payload->>'totalUE')::int, 0)) as total_emitted,
       COUNT(*) as emission_count,
       BOOL_OR(payload->>'phase' = 'silence') as has_silence_emission
     FROM acts_log
@@ -146,7 +146,8 @@ async function main() {
     let emissionCount = 0;
     for (const act of emissionResult.rows) {
       const { act_id, actor_ok, payload, created_at } = act;
-      const { triads, burn_at, phase } = payload;
+      const { triads, phase } = payload;
+      const burn_at = payload.burn_at || payload.burnAt;
 
       const status = phase === 'impulse' ? 'impulse' : 'active';
 
@@ -234,18 +235,18 @@ async function main() {
     let burnedCount = 0;
     for (const act of burnedResult.rows) {
       const { payload, created_at } = act;
-      const { ue_uuid } = payload;
+      const ids = payload.ue_uuids || payload.ue_ids || (payload.ue_uuid ? [payload.ue_uuid] : []);
 
       const updateResult = await client.query(`
         UPDATE ue_units
         SET
           status = 'burned',
           transferred_at = $1
-        WHERE ue_uuid = $2
-      `, [created_at, ue_uuid]);
+        WHERE ue_uuid = ANY($2::uuid[])
+      `, [created_at, ids]);
 
       if (updateResult.rowCount > 0) {
-        burnedCount++;
+        burnedCount += updateResult.rowCount;
       }
     }
 

@@ -46,8 +46,8 @@ async function _reconstruct() {
     switch (act.act_type) {
       case 'EMISSION': {
         const p = typeof act.payload === 'string' ? JSON.parse(act.payload) : act.payload;
-        const ueNumbers = p?.ueNumbers || [];
-        const burnAt = p?.burnAt || new Date(act.created_at).toISOString();
+        const ueNumbers = p?.ue_numbers || p?.ueNumbers || [];
+        const burnAt = p?.burn_at || p?.burnAt || new Date(act.created_at).toISOString();
         for (const num of ueNumbers) {
           const ue_uuid = _generateUEUUID(act.act_id, num);
           await pool.query(
@@ -62,8 +62,8 @@ async function _reconstruct() {
         const p = typeof act.payload === 'string' ? JSON.parse(act.payload) : act.payload;
         if (p?.ue_uuid) {
           await pool.query(
-            `UPDATE ue_units SET status = 'transferred', actor_ok = $2 WHERE ue_uuid = $1`,
-            [p.ue_uuid, act.target_ok]
+            `UPDATE ue_units SET status = 'transferred', transferred_at = $2, transfer_act_id = $3, actor_ok = $4 WHERE ue_uuid = $1`,
+            [p.ue_uuid, act.created_at, act.act_id, act.target_ok]
           );
         }
         break;
@@ -73,8 +73,8 @@ async function _reconstruct() {
         const ids = p?.ue_uuids || p?.ue_ids || [];
         if (ids.length > 0) {
           await pool.query(
-            `UPDATE ue_units SET status = 'burned' WHERE ue_uuid = ANY($1::uuid[])`,
-            [ids]
+            `UPDATE ue_units SET status = 'burned', burn_act_id = $2 WHERE ue_uuid = ANY($1::uuid[])`,
+            [ids, act.act_id]
           );
         }
         break;
@@ -153,8 +153,8 @@ async function _reconstructInMemory() {
 
     switch (act.act_type) {
       case 'EMISSION': {
-        const ueNumbers = p?.ueNumbers || [];
-        const burnAt = p?.burnAt || new Date(act.created_at).toISOString();
+        const ueNumbers = p?.ue_numbers || p?.ueNumbers || [];
+        const burnAt = p?.burn_at || p?.burnAt || new Date(act.created_at).toISOString();
         for (const num of ueNumbers) {
           const ue_uuid = _generateUEUUID(act.act_id, num);
           units.set(ue_uuid, {
@@ -174,6 +174,8 @@ async function _reconstructInMemory() {
           if (unit) {
             unit.actor_ok = act.target_ok;
             unit.status = 'transferred';
+            unit.transferred_at = act.created_at;
+            unit.transfer_act_id = act.act_id;
           }
         }
         break;
@@ -182,7 +184,10 @@ async function _reconstructInMemory() {
         const ids = p?.ue_uuids || p?.ue_ids || [];
         for (const id of ids) {
           const unit = units.get(id);
-          if (unit) unit.status = 'burned';
+          if (unit) {
+            unit.status = 'burned';
+            unit.burn_act_id = act.act_id;
+          }
         }
         break;
       }

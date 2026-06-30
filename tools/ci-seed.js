@@ -49,7 +49,7 @@ async function seed() {
         triads: ['T1'],
         burn_at: BURN_AT.toISOString(),
         phase: 'active',
-        total_ue: 6
+        total_ue: 3
       }), NOW]
     );
 

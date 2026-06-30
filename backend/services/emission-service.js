@@ -19,7 +19,7 @@ async function _selectParentRefs(actor_ok, limit = 3) {
 async function _getDailyEmissionTotal(actor_ok) {
   const today = Metronome.getWindowStart();
   const result = await pool.query(
-    `SELECT COALESCE(SUM((payload->>'totalUE')::int), 0) as total
+    `SELECT COALESCE(SUM((payload->>'total_ue')::int), 0) as total
      FROM acts_log
      WHERE actor_ok = $1 AND act_type = 'EMISSION' AND created_at >= $2`,
     [actor_ok, today]
@@ -59,7 +59,7 @@ async function execute(payload) {
   const result = await pool.query(
     `INSERT INTO acts_log (act_type, actor_ok, payload, refs, created_at)
      VALUES ($1, $2, $3, $4, NOW()) RETURNING act_id, created_at`,
-    ['EMISSION', actor_ok, JSON.stringify({ triads, ueNumbers, totalUE: validation.totalUE, burnAt }), parentRefs]
+    ['EMISSION', actor_ok, JSON.stringify({ triads, ue_numbers: ueNumbers, total_ue: validation.totalUE, burn_at: burnAt, phase }), parentRefs]
   );
 
   const actId = result.rows[0].act_id;
