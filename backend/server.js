@@ -7,7 +7,9 @@ const pool = require('./db');
 const Metronome = require('./core/metronome');
 const logger = require('./core/logger');
 const { BurnService } = require('./services');
-const { PDA, CanonVersionHandshake } = require('../PDA/index');
+const { PDA } = require('../PDA/index');
+
+const pdaInstance = new PDA();
 
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
@@ -15,19 +17,9 @@ app.use(express.json());
 
 // Version Handshake Middleware
 app.use((req, res, next) => {
-  const pda = new PDA();
-  const status = pda.getStatus();
+  const status = pdaInstance.getStatus();
   res.set('X-Pygmalion-Backend-Version', status.version);
   res.set('X-Pygmalion-Canon-Version', status.canon);
-
-  const clientVersion = req.get('X-Client-Version');
-  if (clientVersion) {
-    const handshake = new CanonVersionHandshake();
-    const result = handshake.checkCompatibility(clientVersion);
-    if (!result.success) {
-      logger.warn({ event: 'client_incompatible', client_version: clientVersion, backend_version: status.version });
-    }
-  }
   next();
 });
 

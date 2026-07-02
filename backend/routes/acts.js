@@ -58,16 +58,15 @@ async function handleEmission(req, res, actor_ok, payload) {
       return res.status(result.preview && result.preview.blocked ? 422 : 400).json({ error: result.error || 'Emission failed' });
     }
 
-    // Map result to legacy API format
+    // Mapping for legacy API compatibility
+    // result.result contains: act_id, ue_count, ue_numbers, triads, burn_at, actor_ok
+    // result.preview contains: phase, ue_status, total_ue, burn_at
+
     res.json({
       success: true,
       act_id: result.result.act_id,
-      created_at: result.result.created_at || new Date().toISOString(),
-      ue_units: result.result.ue_numbers.map(num => ({
-        ue_number: num,
-        triad: result.result.triads[0],
-        status: result.preview.ue_status
-      })),
+      created_at: result.result.created_at,
+      ue_units: result.result.ue_units.map(u => ({ ...u, status: result.preview.ue_status })),
       phase: result.preview.phase,
       burn_at: result.preview.burn_at
     });
@@ -83,7 +82,7 @@ async function handleTransfer(req, res, actor_ok, target_ok, payload) {
       return res.status(result.preview && result.preview.blocked ? 422 : 400).json({ error: result.error || 'Transfer failed' });
     }
 
-    // Map result to legacy API format
+    // Mapping for legacy API compatibility
     res.json({
       success: true,
       act_id: result.result.act_id,

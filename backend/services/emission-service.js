@@ -64,14 +64,18 @@ async function execute(payload) {
 
   const actId = result.rows[0].act_id;
   const createdAt = result.rows[0].created_at;
+  const createdUEs = [];
 
-  for (const num of ueNumbers) {
-    const ue_uuid = _generateUEUUID(actId, num);
-    await pool.query(
-      `INSERT INTO ue_units (ue_uuid, ue_number, triad, actor_ok, status, burn_at, created_at, emission_act_id)
-       VALUES ($1, $2, $3, $4, 'active', $5, $6, $7)`,
-      [ue_uuid, num, triads[0], actor_ok, burnAt, createdAt, actId]
-    );
+  for (const triad of triads) {
+    for (const num of Canon.emissionPolicy.getUENumbersByTriad(triad)) {
+      const ue_uuid = _generateUEUUID(actId, num);
+      await pool.query(
+        `INSERT INTO ue_units (ue_uuid, ue_number, triad, actor_ok, status, burn_at, created_at, emission_act_id)
+         VALUES ($1, $2, $3, $4, 'active', $5, $6, $7)`,
+        [ue_uuid, num, triad, actor_ok, burnAt, createdAt, actId]
+      );
+      createdUEs.push({ ue_uuid, ue_number: num, triad });
+    }
   }
 
   await pool.query(
@@ -82,8 +86,10 @@ async function execute(payload) {
   return {
     success: true,
     act_id: actId,
+    created_at: createdAt,
     ue_count: validation.totalUE,
     ue_numbers: ueNumbers,
+    ue_units: createdUEs,
     triads,
     burn_at: burnAt,
     actor_ok,
