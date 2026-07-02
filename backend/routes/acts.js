@@ -4,6 +4,9 @@ const Canon = require('../core/canon');
 const Metronome = require('../core/metronome');
 const { selectParentRefs, checkCooldown, updateLastAct } = require('../helpers');
 const Grammar = require('../core/grammar-engine');
+const { PDA } = require('../../PDA/index');
+
+const pda = new PDA();
 
 module.exports = Router()
   // GET /api/acts — SSOT Inspector
@@ -49,79 +52,52 @@ module.exports = Router()
   });
 
 async function handleEmission(req, res, actor_ok, payload) {
-  const { triads } = payload;
-  if (!triads || !Array.isArray(triads) || triads.length === 0) return res.status(400).json({ error: 'EMISSION requires triads array' });
-  const phase = Metronome.getCurrentPhase();
-  if (phase === 'silence') return res.status(400).json({ error: 'Эмиссия запрещена в зоне тишины (19:55-20:00 UTC).' });
-  const maxUEPerDay = Canon.emissionPolicy.getMaxUEPerDay(actor_ok);
-  const validation = Canon.emissionPolicy.validateTriadSelection(triads, maxUEPerDay);
-  if (!validation.valid) return res.status(400).json({ error: validation.error });
-
-  const window_start = Metronome.getWindowStart();
-  const emittedResult = await pool.query(
-    `SELECT COALESCE(SUM((payload->>'total_ue')::int), 0) as emitted FROM acts_log WHERE actor_ok = $1 AND act_type = 'EMISSION' AND created_at >= $2::timestamp`,
-    [actor_ok, window_start]
-  );
-  if ((parseInt(emittedResult.rows[0].emitted) || 0) + validation.totalUE > maxUEPerDay) {
-    return res.status(400).json({ error: `Превышен лимит ${maxUEPerDay} У.Е. на период.` });
-  }
-
-  const burnAt = Metronome.calculateBurnAt();
-  const status = phase === 'impulse' ? 'impulse' : 'active';
-  const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-    const parentRefs = await selectParentRefs(actor_ok, 3);
-    const actResult = await client.query(
-      `INSERT INTO acts_log (act_type, actor_ok, payload, refs) VALUES ($1, $2, $3, $4) RETURNING act_id, created_at`,
-      [act_type, actor_ok, { triads, burn_at: burnAt, phase, total_ue: validation.totalUE }, parentRefs]
-    );
-    const act_id = actResult.rows[0].act_id;
-    const createdUEs = [];
-    for (const triad of triads) {
-      for (const ueNumber of (Canon.emissionPolicy.getUENumbersByTriad(triad) || [])) {
-        const ueResult = await client.query(
-          `INSERT INTO ue_units (ue_number, triad, actor_ok, status, created_at, burn_at, emission_act_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING ue_uuid`,
-          [ueNumber, triad, actor_ok, status, actResult.rows[0].created_at, burnAt, act_id]
-        );
-        createdUEs.push({ ue_uuid: ueResult.rows[0].ue_uuid, ue_number: ueNumber, triad, status });
-      }
+    const result = await pda.confirm('PLAN', { ...payload, actor_ok });
+    if (!result.success) {
+      return res.status(result.preview && result.preview.blocked ? 422 : 400).json({ error: result.error || 'Emission failed' });
     }
-    await client.query('COMMIT');
-    await updateLastAct(actor_ok, act_type);
-    res.json({ success: true, act_id, created_at: actResult.rows[0].created_at, ue_units: createdUEs, phase, burn_at: burnAt });
+
+    // Map result to legacy API format
+    res.json({
+      success: true,
+      act_id: result.result.act_id,
+      created_at: result.result.created_at || new Date().toISOString(),
+      ue_units: result.result.ue_numbers.map(num => ({
+        ue_number: num,
+        triad: result.result.triads[0],
+        status: result.preview.ue_status
+      })),
+      phase: result.preview.phase,
+      burn_at: result.preview.burn_at
+    });
   } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
+    res.status(500).json({ error: err.message });
   }
 }
 
 async function handleTransfer(req, res, actor_ok, target_ok, payload) {
-  const { ue_uuid } = payload;
-  if (!ue_uuid) return res.status(400).json({ error: 'TRANSFER requires ue_uuid' });
-  if (!target_ok) return res.status(400).json({ error: 'TRANSFER requires target_ok' });
-  const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-    const ueCheck = await client.query('SELECT ue_uuid, ue_number, triad, actor_ok, status, burn_at FROM ue_units WHERE ue_uuid = $1 AND actor_ok = $2', [ue_uuid, actor_ok]);
-    if (ueCheck.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'У.Е. не найдена или не принадлежит actor_ok' }); }
-    const ue = ueCheck.rows[0];
-    if (ue.status !== 'active') { await client.query('ROLLBACK'); return res.status(400).json({ error: `У.Е. не активна (статус: ${ue.status})` }); }
-    const phase = Metronome.getCurrentPhase();
-    if (phase !== 'active') { await client.query('ROLLBACK'); return res.status(400).json({ error: `Передача доступна только в активной фазе (текущая: ${phase})` }); }
-    const parentRefs = await selectParentRefs(actor_ok, 3);
-    const actResult = await client.query(`INSERT INTO acts_log (act_type, actor_ok, target_ok, payload, refs) VALUES ($1, $2, $3, $4, $5) RETURNING act_id, created_at`, [act_type, actor_ok, target_ok, payload, parentRefs]);
-    await client.query(`UPDATE ue_units SET status = 'transferred', transferred_at = $1, transfer_act_id = $2, actor_ok = $3 WHERE ue_uuid = $4`, [actResult.rows[0].created_at, actResult.rows[0].act_id, target_ok, ue_uuid]);
-    await client.query('COMMIT');
-    await updateLastAct(actor_ok, act_type);
-    res.json({ success: true, act_id: actResult.rows[0].act_id, created_at: actResult.rows[0].created_at, ue_transferred: { ue_uuid: ue.ue_uuid, ue_number: ue.ue_number, triad: ue.triad, from: actor_ok, to: target_ok } });
+    const result = await pda.confirm('FLOW', { ...payload, actor_ok, target_ok });
+    if (!result.success) {
+      return res.status(result.preview && result.preview.blocked ? 422 : 400).json({ error: result.error || 'Transfer failed' });
+    }
+
+    // Map result to legacy API format
+    res.json({
+      success: true,
+      act_id: result.result.act_id,
+      created_at: result.result.transferred_at || new Date().toISOString(),
+      ue_transferred: {
+        ue_uuid: result.result.ue_uuid,
+        ue_number: result.result.ue_number,
+        triad: result.result.triad,
+        from: result.result.from,
+        to: result.result.to
+      }
+    });
   } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
+    res.status(500).json({ error: err.message });
   }
 }
 
