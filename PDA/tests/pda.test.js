@@ -494,7 +494,7 @@ if (hasDB) {
     });
 
     await dbt('execute FLOW valid', async () => {
-      const r = await gateway.execute({ action: 'flow', payload: { actor_ok: '::TESTPDA::', target_ok: '::SYSTEM::' } });
+      const r = await gateway.execute({ action: 'flow', payload: { actor_ok: '::TESTPDA::', target_ok: '::RECEPTOR::' } });
       if (Metronome.isTransferAllowed()) {
         assert.ok(r.success);
       } else {
