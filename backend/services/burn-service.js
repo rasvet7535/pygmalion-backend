@@ -2,49 +2,44 @@ const pool = require('../db');
 const Metronome = require('../core/metronome');
 
 async function execute() {
-  const now = Metronome.getCurrentTimeISO();
-
-  const result = await pool.query(
-    `SELECT ue_uuid, actor_ok, ue_number FROM ue_units
-     WHERE status IN ('active', 'impulse') AND burn_at <= $1`,
-    [now]
-  );
-
-  const ues = result.rows;
-  if (ues.length === 0) {
-    return { success: true, burned_count: 0, message: 'Нет У.Е. для сжигания' };
+  const nowISO = Metronome.getCurrentTimeISO();
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const toBurn = await client.query(
+        `SELECT ue_uuid, ue_number, triad, actor_ok, burn_at, emission_act_id FROM ue_units WHERE status IN ('active', 'impulse') AND burn_at <= $1::timestamp`,
+        [nowISO]
+      );
+      let burnedCount = 0;
+      if (toBurn.rows.length > 0) {
+        const ueUuids = toBurn.rows.map(u => u.ue_uuid);
+        const actResult = await client.query(
+          `INSERT INTO acts_log (act_type, actor_ok, payload, refs)
+           SELECT 'BURNED', actor_ok,
+                  jsonb_build_object('ue_uuid', ue_uuid, 'ue_number', ue_number, 'triad', triad, 'burn_at', burn_at),
+                  ARRAY[emission_act_id]::uuid[]
+           FROM ue_units WHERE ue_uuid = ANY($1::uuid[])
+           RETURNING act_id, created_at, actor_ok, payload->>'ue_uuid' AS burned_ue_uuid, emission_act_id`,
+          [ueUuids]
+        );
+        for (const row of actResult.rows) {
+          await client.query(`UPDATE ue_units SET status = 'burned', transferred_at = $1 WHERE ue_uuid = $2`, [row.created_at, row.burned_ue_uuid]);
+          await client.query(`INSERT INTO ro_dag_edges (from_act_id, to_act_id, edge_type) VALUES ($1, $2, 'RELEASE')`, [row.emission_act_id, row.act_id]);
+          burnedCount++;
+        }
+      }
+      await client.query('COMMIT');
+      return { success: true, burned_count: burnedCount, timestamp: nowISO };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    throw err;
   }
-
-  const actResult = await pool.query(
-    `INSERT INTO acts_log (act_type, actor_ok, payload, created_at)
-     VALUES ('BURNED', '::system::', $1, NOW()) RETURNING act_id, created_at`,
-    [JSON.stringify({ count: ues.length, ue_uuids: ues.map(u => u.ue_uuid) })]
-  );
-
-  const actId = actResult.rows[0].act_id;
-  const createdAt = actResult.rows[0].created_at;
-
-  await pool.query(
-    `UPDATE ue_units SET status = 'burned', burn_act_id = $2
-     WHERE ue_uuid = ANY($1::uuid[])`,
-    [ues.map(u => u.ue_uuid), actId]
-  );
-
-  const actors = [...new Set(ues.map(u => u.actor_ok))];
-  if (actors.length > 0) {
-    await pool.query(
-      `UPDATE ok_identity SET last_act_at = $1, last_act_type = 'BURNED' WHERE ok_key = ANY($2::text[])`,
-      [createdAt, actors]
-    );
-  }
-
-  return {
-    success: true,
-    burned_count: ues.length,
-    act_id: actId,
-    burned_ues: ues.map(u => ({ ue_uuid: u.ue_uuid, actor_ok: u.actor_ok, ue_number: u.ue_number })),
-    timestamp: Metronome.getCurrentTimeISO(),
-  };
 }
 
 module.exports = { execute };

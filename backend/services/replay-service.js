@@ -70,11 +70,11 @@ async function _reconstruct() {
       }
       case 'BURNED': {
         const p = typeof act.payload === 'string' ? JSON.parse(act.payload) : act.payload;
-        const ids = p?.ue_uuids || p?.ue_ids || [];
+        const ids = p?.ue_uuids || p?.ue_ids || (p?.ue_uuid ? [p.ue_uuid] : []);
         if (ids.length > 0) {
           await pool.query(
-            `UPDATE ue_units SET status = 'burned', burn_act_id = $2 WHERE ue_uuid = ANY($1::uuid[])`,
-            [ids, act.act_id]
+            `UPDATE ue_units SET status = 'burned', transferred_at = $2, burn_act_id = $3 WHERE ue_uuid = ANY($1::uuid[])`,
+            [ids, act.created_at, act.act_id]
           );
         }
         break;
@@ -181,11 +181,12 @@ async function _reconstructInMemory() {
         break;
       }
       case 'BURNED': {
-        const ids = p?.ue_uuids || p?.ue_ids || [];
+        const ids = p?.ue_uuids || p?.ue_ids || (p?.ue_uuid ? [p.ue_uuid] : []);
         for (const id of ids) {
           const unit = units.get(id);
           if (unit) {
             unit.status = 'burned';
+            unit.transferred_at = act.created_at;
             unit.burn_act_id = act.act_id;
           }
         }

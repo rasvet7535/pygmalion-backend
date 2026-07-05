@@ -3,7 +3,15 @@ const Canon = require('../core/canon');
 const Metronome = require('../core/metronome');
 
 async function execute(payload) {
-  const { actor_ok, target_ok, ue_uuid } = payload;
+  const {
+    actor_ok,
+    target_ok,
+    ue_uuid,
+    buyoutDate,
+    temporaryKey,
+    deliveryTerm,
+    RIP
+  } = payload;
 
   if (!Metronome.isTransferAllowed()) {
     return { success: false, error: `Передача разрешена только в фазе "active" (04:00-19:55 UTC)` };
@@ -39,7 +47,21 @@ async function execute(payload) {
   const actResult = await pool.query(
     `INSERT INTO acts_log (act_type, actor_ok, target_ok, payload, refs, created_at)
      VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING act_id, created_at`,
-    ['TRANSFER', actor_ok, target_ok, JSON.stringify({ ue_uuid: targetUe.ue_uuid, ue_number: targetUe.ue_number, triad: targetUe.triad }), parentRefs]
+    [
+      'TRANSFER',
+      actor_ok,
+      target_ok,
+      JSON.stringify({
+        ue_uuid: targetUe.ue_uuid,
+        ue_number: targetUe.ue_number,
+        triad: targetUe.triad,
+        buyoutDate: buyoutDate || null,
+        temporaryKey: temporaryKey || null,
+        deliveryTerm: deliveryTerm || null,
+        RIP: RIP || null
+      }),
+      parentRefs
+    ]
   );
 
   const actId = actResult.rows[0].act_id;
