@@ -44,6 +44,12 @@ async function execute(payload) {
 
   const parentRefs = [targetUe.ue_uuid];
 
+  const metadata = {};
+  if (buyoutDate) metadata.buyoutDate = buyoutDate;
+  if (temporaryKey) metadata.temporaryKey = temporaryKey;
+  if (deliveryTerm) metadata.deliveryTerm = deliveryTerm;
+  if (RIP) metadata.RIP = RIP;
+
   const actResult = await pool.query(
     `INSERT INTO acts_log (act_type, actor_ok, target_ok, payload, refs, created_at)
      VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING act_id, created_at`,
@@ -55,10 +61,7 @@ async function execute(payload) {
         ue_uuid: targetUe.ue_uuid,
         ue_number: targetUe.ue_number,
         triad: targetUe.triad,
-        buyoutDate: buyoutDate || null,
-        temporaryKey: temporaryKey || null,
-        deliveryTerm: deliveryTerm || null,
-        RIP: RIP || null
+        ...metadata
       }),
       parentRefs
     ]

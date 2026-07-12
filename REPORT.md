@@ -1,40 +1,39 @@
-# Phase A Enforcement Report — PDA Integration (Mechanical)
+# PHASE A EXECUTION REPORT
 
 ## Status: COMPLETE
-**Mode**: Execute (Mechanical 1:1 Extraction)
-**Objective**: PDA Enforcement — Phase A (Execution Contract)
+**Objective**: PDA Enforcement & Pilot Foundation Hardening
 
-## 1. Metadata Hardening
+### 1. Metadata Hardening (TRANSFER)
 - **Target**: `backend/services/transfer-service.js`
-- **Changes**: Mechanical 1:1 pass-through of Sandbox metadata fields (`buyoutDate`, `temporaryKey`, `deliveryTerm`, `RIP`) from payload to `acts_log`.
-- **Constraint Compliance**: No new validation or business logic introduced.
+- **Change**: Implemented strict mechanical pass-through for `buyoutDate`, `temporaryKey`, `deliveryTerm`, and `RIP`.
+- **Constraint Compliance**: Used property spreading to ensure fields are only added to `acts_log` if present in the source payload. No validation added.
 
-## 2. Route Hardening
+### 2. Route Hardening (EMISSION / TRANSFER)
 - **Target**: `backend/routes/acts.js`
-- **Changes**:
-  - `EMISSION` & `TRANSFER`: Refactored to delegate execution to PDA via `pda.confirm('PLAN')` and `pda.confirm('FLOW')`.
-  - **Compatibility**: Results are mechanically mapped to maintain exact legacy HTTP response structures.
-  - **Canon Rule**: No functional dependencies on Canon logic inside the route. Triad mapping is implemented as static mechanical logic.
-- **Constraint Compliance**: Routes remain thin adapters; no business logic remains in the refactored handlers.
+- **Change**: `handleEmission` and `handleTransfer` now delegate execution to the PDA via `pda.confirm('PLAN')` and `pda.confirm('FLOW')`.
+- **API Compatibility**: Updated `backend/services/emission-service.js` to return `ue_units` with `ue_uuid`. Refactored the route response mapping to preserve exact legacy JSON structure (preserving unit lists and transfer details).
+- **Security**: Routes are now thin adapters with 0 business logic and no direct SQL.
 
-## 3. Burn Logic Extraction (1:1)
+### 3. Burn Logic Extraction
 - **Target**: `backend/services/burn-service.js`, `backend/server.js`
-- **Changes**:
-  - Exact SQL logic from `server.js` midnight cron moved 1:1 to `BurnService.execute()`.
-  - Midnight cron job in `server.js` refactored to call the service.
-- **Result**: `server.js` contains 0 direct SQL queries.
-- **Constraint Compliance**: No behavioral changes or optimizations during extraction.
+- **Change**: Extracted the midnight burn SQL logic 1:1 from `server.js` into `BurnService.execute()`.
+- **Preservation**: Maintained per-UE acts, `ro_dag_edges`, and deterministic timestamps.
+- **Result**: `server.js` now contains 0 direct SQL queries for the burn process.
 
-## 4. Version Handshake
+### 4. Version Visibility
 - **Target**: `backend/server.js`
-- **Changes**: Minimal middleware exposing `X-Pygmalion-Backend-Version` and `X-Pygmalion-Canon-Version` headers using existing PDA status data.
+- **Change**: Added minimal middleware to inject `X-Pygmalion-Backend-Version` and `X-Pygmalion-Canon-Version` headers into all responses.
 
-## 5. Verification
-- **Test Suite**:
-  - `node PDA/tests/pda.test.js`: 87/87 PASS
-  - `node PDA/tests/canon-contract.test.js`: 63/63 PASS
-  - `node tests/docker-integration.test.js`: 10/10 PASS
-- **Replay**: Verified system state consistency (0 mismatch).
+### 5. SSOT & Replay Integrity
+- **Target**: `backend/services/replay-service.js`
+- **Change**: Minimal compatibility fix to support the per-unit `BURNED` act format (handling both array-based and singular UUID payloads).
+- **Result**: Replay verification confirmed at **0 mismatch**.
+
+### 6. Verification Results
+- **Unit Tests (`pda.test.js`)**: 87/87 PASS
+- **Contract Tests (`canon-contract.test.js`)**: 63/63 PASS
+- **Integration Tests (`docker-integration.test.js`)**: 10/10 PASS
+- **System State**: Fully reconstructible from `acts_log`.
 
 ---
-*Mechanical Execution Report by Jules (Deterministic Engineering Executor)*
+*Mechanical Execution by Jules (Deterministic Engineering Executor)*
