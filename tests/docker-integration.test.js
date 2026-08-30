@@ -109,7 +109,7 @@ async function run() {
     const gateway = new ExecutionGateway();
 
     await dtest('execute THRESHOLD creates new OK', async () => {
-      const okKey = '::TESTPDA' + Date.now().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '') + '::';
+      const okKey = ('::TESTPDA' + Date.now().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '') + '::').replace(/[IY]/g, 'X');
       const r = await gateway.execute({ action: 'threshold', payload: { ok_key: okKey } });
       if (!r.success) throw new Error('threshold failed: ' + JSON.stringify(r));
       if (!r.act_id) throw new Error('no act_id');
@@ -133,11 +133,11 @@ async function run() {
     });
 
     await dtest('PDA.confirm full cycle THRESHOLD → PLAN → MIRROR', async () => {
-      const okKey = '::TESTPDA' + Date.now().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '') + '::';
+      const okKey = ('::TESTPDA' + Date.now().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '') + '::').replace(/[IY]/g, 'X');
       const threshold = await pda.confirm('THRESHOLD', { ok_key: okKey });
       if (!threshold.intent || !threshold.preview) throw new Error('threshold confirm incomplete');
       if (threshold.result && !threshold.result.success) {
-        process.stdout.write(`  ℹ THRESHOLD result: ${JSON.stringify(threshold.result)}\n`);
+        throw new Error('threshold confirm execution failed: ' + JSON.stringify(threshold.result));
       }
     });
 
